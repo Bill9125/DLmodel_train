@@ -2,6 +2,7 @@
 .DS_Store
 .ipynb_checkpoints
 dataset
+3D_traindata
 models_dd2voz
 models_z
 models_SHAP

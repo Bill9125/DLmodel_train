@@ -344,23 +344,32 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--GT_class',type=str)
-    parser.add_argument('--Input_dim',type=int, default=25)
     parser.add_argument('--SHAP',type=str, default=None)
+    parser.add_argument('--F_type',type=str)
     args = parser.parse_args()
     GT_class = args.GT_class
-    input_dim = args.Input_dim
     SHAP_mode = args.SHAP
+    F_type = args.F_type
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    datasets_path = os.path.join(os.getcwd(), 'dataset')
     
     if SHAP_mode is None:
-        from dataset import Dataset_25f
-        full_dataset = Dataset_25f(datasets_path, GT_class)
-        save_dir = f'./models_dd2voz/{GT_class}'
-        
+        if F_type == '2D':
+            from dataset import Dataset_25f
+            datasets_path = os.path.join(os.getcwd(), 'dataset')
+            full_dataset = Dataset_25f(datasets_path, GT_class)
+            save_dir = f'./models_dd2voz/{GT_class}'
+            
+        elif F_type == '3D':
+            from dataset import Dataset_3D
+            datasets_path = os.path.join(os.getcwd(), '3D_traindata')
+            full_dataset = Dataset_3D(datasets_path, GT_class)
+            save_dir = f'./models_3D/{GT_class}'
+        input_dim = full_dataset.dim
+    
     else:
         from dataset import Dataset_SHAP
+        datasets_path = os.path.join(os.getcwd(), 'dataset')
         full_dataset = Dataset_SHAP(datasets_path, GT_class, SHAP_mode)
         input_dim = full_dataset.dim
         save_dir = f'./models_SHAP/{GT_class}/SHAP_{SHAP_mode}'
