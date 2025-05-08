@@ -2,14 +2,16 @@ from torch.utils.data import Dataset
 import os, glob
 import torch
 
-class Dataset_25f(Dataset):
+class Dataset_dd2voz(Dataset):
     def __init__(self, dataset, GT_class):
         self.sample_paths = []   
         self.features = []       
         self.labels = []
         self.count_info = []    
         self.dim = int
-        counter = 0     
+        counter = 0   
+        
+        self.missing = []  
         
         valid_categories = {'Category_1', 'Category_2', 'Category_3', 'Category_4', 'Category_5'}
         categories = [path for path in glob.glob(os.path.join(dataset, '*')) if os.path.basename(path) in valid_categories]
@@ -50,6 +52,10 @@ class Dataset_25f(Dataset):
             print(f'{category} have {counter} samples')
             self.count_info.append(counter)
             counter = 0
+            
+        with open("missing_merge.txt", "w", encoding="utf-8") as f:
+            for line in self.missing:
+                f.write(line + "\n")
     
     def get_ratio(self):
         category_ratio = {}
@@ -76,14 +82,19 @@ class Dataset_25f(Dataset):
             self.sample_paths.append(file)
             
             for num in zip(*parsed_data):
-                # 將 num 裡的數據變成 25*1 
+                # 將 num 裡的數據做 flat 
                 frame_data = [item for sublist in num for item in sublist]
-                data_per_ind.append(frame_data)
                 self.dim = len(frame_data)
+                data_per_ind.append(frame_data)
                 
                 if len(data_per_ind) == 110:  # 达到110帧时返回
                     yield data_per_ind
                     data_per_ind = []
+            if len(frame_data) != 30:
+                self.missing.append(ud[0])
+                
+        
+
 
     def __len__(self):
         return len(self.features)
