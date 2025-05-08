@@ -94,27 +94,25 @@ class PatchEmbedding(nn.Module):
         self.patch_len = patch_len
         self.input_dim = input_dim
         self.embed_dim = embed_dim
-        self.stride = stride if stride else patch_len  # 預設不重疊
-
-        self.num_patches = (input_len - patch_len) // self.stride + 1
-        self.proj = nn.Linear(patch_len, embed_dim)
+        self.stride = stride if stride else patch_len
+        self.proj = nn.Linear(patch_len * input_dim, embed_dim)
 
     def forward(self, x):
-        B, T, F = x.shape  # (batch, time, features)
-        x = x.permute(0, 2, 1)  # (B, F, T)
-        x = x.unfold(dimension=2, size=self.patch_len, step=self.stride)  # (B, F, num_patches, patch_len)
-        x = self.proj(x)  # (B, F, num_patches, embed_dim)
-        x = x.permute(0, 2, 1, 3).reshape(B, -1, self.embed_dim)  # (B, F*num_patches, embed_dim)
+        B, T, F = x.shape
+        x = x.unfold(dimension=1, size=self.patch_len, step=self.stride)
+        x = x.contiguous().view(B, -1, self.patch_len * F)
+        x = self.proj(x)
         return x
 
 class PatchTSTClassifier(nn.Module):
     def __init__(self, input_len=110, patch_len=10, input_dim=25,
-                 embed_dim=256, num_heads=4, num_layers=4, num_classes=4, dropout=0.1, stride=None):
+                 embed_dim=256, num_heads=4, num_layers=4, num_classes=4, dropout=0.1, stride=5):
         super().__init__()
         self.patch_embed = PatchEmbedding(input_len, patch_len, input_dim, embed_dim, stride=stride)
+        self.embed_dim = embed_dim
 
         num_patches = (input_len - patch_len) // (stride if stride else patch_len) + 1
-        self.pos_embed = nn.Parameter(torch.randn(1, num_patches * input_dim, embed_dim))
+        self.pos_embed = nn.Parameter(torch.randn(1, num_patches, embed_dim))
 
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=embed_dim, nhead=num_heads, dropout=dropout, batch_first=True
@@ -126,9 +124,18 @@ class PatchTSTClassifier(nn.Module):
             nn.Linear(embed_dim, num_classes)
         )
 
+
     def forward(self, x):
-        x = self.patch_embed(x)  # (B, tokens, embed_dim)
-        x = x + self.pos_embed[:, :x.size(1), :]  # safe positional embed
+        x = self.patch_embed(x)  # (B, num_patches, embed_dim)
+        
+        # 動態調整位置嵌入的長度（安全做法）
+        pos_embed = self.pos_embed[:, :x.size(1), :]  # 可裁切
+        if pos_embed.size(1) < x.size(1):  # 若不足，補上隨機值（不常見）
+            extra = torch.randn(1, x.size(1) - pos_embed.size(1), self.embed_dim, device=x.device)
+            pos_embed = torch.cat([pos_embed, extra], dim=1)
+
+        x = x + pos_embed  # (B, tokens, embed_dim)
         x = self.transformer(x)
         x = x.mean(dim=1)
         return self.classifier(x)
+    

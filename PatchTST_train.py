@@ -9,12 +9,13 @@ from torch.utils.data import WeightedRandomSampler
 import matplotlib.pyplot as plt
 import time
 import argparse
+from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from collections import Counter
 import random
-from models import ResNet32
 from models import PatchTSTClassifier
 from torchsummary import summary
+from sklearn.metrics import f1_score
 
 def set_seed(seed):
     random.seed(seed)
@@ -25,45 +26,7 @@ def set_seed(seed):
 
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-# 計算 F1-score 的函數
-def f1_score(y_true, y_pred):
-    # Get unique classes
-    classes = np.unique(np.concatenate((y_true, y_pred)))
     
-    # Initialize
-    class_f1_scores = {}
-    class_weights = {}
-    
-    # Count instances of each class in true labels
-    total_samples = len(y_true)
-    class_counts = Counter(y_true)
-    
-    # Calculate weights for each class
-    for cls in classes:
-        class_weights[cls] = class_counts.get(cls, 0) / total_samples
-    
-    # For each class, calculate F1 score
-    for cls in classes:
-        # True positives, false positives, false negatives
-        tp = np.sum((y_true == cls) & (y_pred == cls) & ~((y_true == 0) & (y_pred == 0)))
-        fp = np.sum((y_true != cls) & (y_pred == cls))
-        fn = np.sum((y_true == cls) & (y_pred != cls))
-        
-        # Precision and recall
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        
-        # F1 score for this class
-        if precision + recall > 0:
-            class_f1_scores[cls] = 2 * (precision * recall) / (precision + recall)
-        else:
-            class_f1_scores[cls] = 0
-    
-    # Calculate weighted F1 score
-    weighted_f1 = sum(class_weights[cls] * class_f1_scores[cls] for cls in classes)
-    return weighted_f1
-
 def compute_f1_score(model, data_loader):
     model.eval()
     y_true, y_pred = [], []
@@ -72,12 +35,12 @@ def compute_f1_score(model, data_loader):
         for inputs, labels, indices in data_loader:
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
-            _, predicted = torch.max(outputs, 1)
-            
-            y_true.extend(labels.cpu().numpy())
-            y_pred.extend(predicted.cpu().numpy())
+            probs = torch.sigmoid(outputs)  # [B, num_classes]
+            preds = (probs > 0.5).int()     # [B, num_classes]
+            y_true.extend(labels.cpu().numpy().tolist())    # labels shape: (batch, num_classes)
+            y_pred.extend(preds.tolist())                   # preds shape: (batch, num_classes)
 
-    return f1_score(y_true, y_pred)  
+    return f1_score(y_true, y_pred, average='macro')
 
 def train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path, num_epochs=100, patience=8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -104,12 +67,15 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, schedul
             optimizer.step()
             total_loss += loss.item()
 
-            _, predicted = torch.max(outputs, 1)
-            y_true.extend(labels.cpu().numpy())
-            y_pred.extend(predicted.cpu().numpy())
+            probs = torch.sigmoid(outputs)  # [B, num_classes]
+            preds = (probs > 0.5).int()     # [B, num_classes]
+            y_true.extend(labels.cpu().numpy().tolist())    # labels shape: (batch, num_classes)
+            y_pred.extend(preds.tolist())                   # preds shape: (batch, num_classes)
 
         avg_loss = total_loss / len(train_loader)
-        train_f1 = f1_score(y_true, y_pred)
+        print('y_true', len(y_true), 'EX:', y_true[0])
+        print('y_pred', len(y_pred), 'EX:', y_pred[0])
+        train_f1 = f1_score(y_true, y_pred, average='macro')
         val_f1 = compute_f1_score(model, valid_loader)
 
         scheduler.step()
@@ -146,24 +112,7 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, schedul
     plt.legend()
     plt.grid(True)
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")  # 儲存高解析度圖片
-
-# ----------------------
-# Validation Function
-# ----------------------
-def validate_model(model, valid_loader, criterion):
-    model.eval()
-    total_loss = 0.0
-    with torch.no_grad():
-        for inputs, labels, indices in valid_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            total_loss += loss.item()
-    return total_loss / len(valid_loader)
-
-# ----------------------
-# Testing Function
-# ----------------------
+    
 def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, save_dir, save_path, full_dataset):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.load_state_dict(torch.load(save_path))
@@ -173,8 +122,8 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
     total_loss, total_time = 0.0, 0.0  
     y_true, y_pred = [], []
 
-    false_positives = []
-    false_negatives = []
+    # false_positives = []
+    # false_negatives = []
     
     with torch.no_grad():
         for inputs, labels, indices in test_loader:
@@ -187,88 +136,68 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
 
             loss = criterion(outputs, labels)
             total_loss += loss.item()
-            _, predicted = torch.max(outputs, 1)
+            probs = torch.sigmoid(outputs)  # [B, num_classes]
+            preds = (probs > 0.5).int()     # [B, num_classes]
 
-            for i in range(len(inputs)):  # 只迭代當前批次中的實際樣本數量
-                sample_idx = indices[i].item()  # 直接拿到 full_dataset index！
-                detailed_path = full_dataset.get_sample_path(sample_idx)
+            # for i in range(len(inputs)):  # 只迭代當前批次中的實際樣本數量
+            #     sample_idx = indices[i].item()  # 直接拿到 full_dataset index！
+            #     detailed_path = full_dataset.get_sample_path(sample_idx)
                 
-                if predicted[i] == 1 and labels[i] == 0:
-                    false_positives.append(f"{str(detailed_path)}")
-                elif predicted[i] == 0 and labels[i] == 1:
-                    false_negatives.append(f"{str(detailed_path)}")
+            #     if predicted[i] == 1 and labels[i] == 0:
+            #         false_positives.append(f"{str(detailed_path)}")
+            #     elif predicted[i] == 0 and labels[i] == 1:
+            #         false_negatives.append(f"{str(detailed_path)}")
                     
-            y_true.extend(labels.cpu().numpy())
-            y_pred.extend(predicted.cpu().numpy())
+            y_true.extend(labels.cpu().numpy().tolist())    # labels shape: (batch, num_classes)
+            y_pred.extend(preds.tolist())                   # preds shape: (batch, num_classes)
 
     avg_loss = total_loss / len(test_loader)
     avg_time_per_sample = total_time / len(y_true)
-    f1 = f1_score(y_true, y_pred) 
+    f1 = f1_score(y_true, y_pred, average='macro')
 
     model_name = os.path.splitext(os.path.basename(save_path))[0]
     txt_dir = os.path.join(save_dir, f"{model_name}_results")
     os.makedirs(txt_dir, exist_ok=True)
 
-    with open(f"{txt_dir}/false_positives.txt", "w") as fp_file:
-        fp_file.write("\n".join(false_positives))
+    # with open(f"{txt_dir}/false_positives.txt", "w") as fp_file:
+    #     fp_file.write("\n".join(false_positives))
     
-    with open(f"{txt_dir}/false_negatives.txt", "w") as fn_file:
-        fn_file.write("\n".join(false_negatives))
+    # with open(f"{txt_dir}/false_negatives.txt", "w") as fn_file:
+    #     fn_file.write("\n".join(false_negatives))
         
-    print(f"共有 {len(false_positives)} FP，{len(false_negatives)} FN")
-    print(f"已保存到 {txt_dir}/false_positives.txt 和 false_negatives.txt")
+    # print(f"共有 {len(false_positives)} FP，{len(false_negatives)} FN")
+    # print(f"已保存到 {txt_dir}/false_positives.txt 和 false_negatives.txt")
 
-    cm = confusion_matrix(y_true, y_pred)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-    plt.figure(figsize=(6, 6))
-    disp.plot(cmap='Blues')
-    plt.title('Confusion Matrix')
+    classes = ['The barbell is moving away from the shins', 'Hips rise before the barbell leaves the ground',
+               'The barbell collides with the knees', 'Lower back rounding']
+    cm = multilabel_confusion_matrix(y_true, y_pred, sample_weight=None, labels=None, samplewise=False)
+    n_classes = cm.shape[0]
+    fig, axes = plt.subplots(nrows=(n_classes+1)//2, ncols=2, figsize=(12, 10))
+    axes = axes.flatten()
+
+    for i in range(n_classes):
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm[i], display_labels=['False', 'True'])
+        disp.plot(include_values=True, cmap="viridis", ax=axes[i], 
+                xticks_rotation="horizontal", values_format="d")
+        axes[i].set_title(f'Class: {classes[i]}')
+
+    plt.tight_layout()
     plt.savefig(f"{txt_dir}/confusion_matrix.png")
     plt.close()
 
-    return avg_loss, f1, avg_time_per_sample, false_positives, false_negatives
+    return avg_loss, f1, avg_time_per_sample
 
-                                     
-# ----------------------
-# (6) Main Execution
-# ----------------------
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--GT_class',type=str)
-    parser.add_argument('--SHAP',type=str, default=None)
-    parser.add_argument('--F_type',type=str)
-    parser.add_argument('--model', type=str)
-    args = parser.parse_args()
-    GT_class = args.GT_class
-    SHAP_mode = args.SHAP
-    F_type = args.F_type
     
+if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    if SHAP_mode is None:
-        if F_type == '2D':
-            from dataset import Dataset_dd2voz
-            datasets_path = os.path.join(os.getcwd(), '2D_traindata_with_hand')
-            full_dataset = Dataset_dd2voz(datasets_path, GT_class)
-            save_dir = f'./models_dd2voz_hand/{GT_class}'
-            
-        elif F_type == '3D':
-            from dataset import Dataset_3D
-            datasets_path = os.path.join(os.getcwd(), '3D_traindata')
-            full_dataset = Dataset_3D(datasets_path, GT_class)
-            save_dir = f'./models_3D/{GT_class}'
-        input_dim = full_dataset.dim
-        print('Input dimention',input_dim)
+    from dataset import Dataset_TST
+    dataset = os.path.join(os.getcwd(), 'dataset')
+    full_dataset = Dataset_TST(dataset)
+    save_dir = f'./model_TST'
+    input_dim = full_dataset.dim
+    print('Input dimention',input_dim)
     
-    else:
-        from dataset import Dataset_SHAP
-        datasets_path = os.path.join(os.getcwd(), 'dataset')
-        full_dataset = Dataset_SHAP(datasets_path, GT_class, SHAP_mode)
-        input_dim = full_dataset.dim
-        save_dir = f'./models_SHAP/{GT_class}/SHAP_{SHAP_mode}'
-    
-    category_ratio = full_dataset.get_ratio()
-    print(f'Category : {category_ratio}')
     train_size = int(0.75 * len(full_dataset))
     valid_size = int(0.15 * len(full_dataset))
     test_size = len(full_dataset) - train_size - valid_size
@@ -284,32 +213,30 @@ if __name__ == "__main__":
         set_seed(se)
 
         # 分割資料
-        train_dataset, valid_dataset, test_dataset = random_split(full_dataset, [train_size, valid_size, test_size])
+        gen = torch.Generator().manual_seed(se)  # 為每個seed創建獨立生成器
+        train_dataset, valid_dataset, test_dataset = random_split(
+            full_dataset, 
+            [train_size, valid_size, test_size],
+            generator=gen
+        )
         train_labels = [full_dataset.labels[i] for i in train_dataset.indices]
 
-        # 建立 Weighted Sampler
-        class_weights = [1.0 / sum(np.array(train_labels) == i) for i in range(2)]
-        sample_weights = [class_weights[label] for label in train_labels]
-        sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
-
-        train_loader = DataLoader(train_dataset, batch_size=8, sampler=sampler)
+        train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
         valid_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False)
         test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
 
         # 訓練與測試
-        model = ResNet32(input_dim).to(device)
-        P_ratio = category_ratio[GT_class]
-        class_counts = torch.tensor([P_ratio, 1 - P_ratio])
-        criterion = CrossEntropyLoss(weight=(1.0 / class_counts).to(device))
-        optimizer = optim.Adam(model.parameters(), lr=0.001)
+        model = PatchTSTClassifier(input_dim).to(device)
+        optimizer = optim.Adam(model.parameters(), lr=0.0001)
+        criterion = torch.nn.BCEWithLogitsLoss()
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
 
-        save_path = os.path.join(save_dir, f"ResNet32_model_seed{se}.pth")
-        fig_path = os.path.join(save_dir, f"ResNet32_train_results_seed{se}.png")
+        save_path = os.path.join(save_dir, f"PatchTST_model_seed{se}.pth")
+        fig_path = os.path.join(save_dir, f"PatchTST_train_results_seed{se}.png")
 
         train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path)
 
-        avg_loss, f1, avg_time_per_sample, false_positives, false_negatives = test_model_with_path_tracking(
+        avg_loss, f1, avg_time_per_sample = test_model_with_path_tracking(
             model, test_loader, test_dataset, criterion, save_dir, save_path, full_dataset
         )
 
