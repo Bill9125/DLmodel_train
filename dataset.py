@@ -425,7 +425,7 @@ class Dataset_TST(Dataset):
             orins = glob.glob(os.path.join(orin_path, '*.txt'))
             
             data_per_ind = list(self.fetch(zip(deltas, delta2s, zscores, squares, orins)))
-            self.features.extend(data_per_ind)
+            self.features.extend(torch.tensor(data_per_ind).float())
             self.labels.extend([torch.tensor(label).float()] * len(data_per_ind))
         print('total data:', len(self.features))
         print('total label', len(self.labels))
@@ -442,7 +442,7 @@ class Dataset_TST(Dataset):
     def __getitem__(self, idx):
         x = self.features[idx]
         y = self.labels[idx]
-        return torch.tensor(x), torch.tensor(y), idx
+        return x, y, idx
     
     def fetch(self, uds):
         """

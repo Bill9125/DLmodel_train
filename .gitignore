@@ -10,3 +10,5 @@ models_3D
 model_TST
 __pycache__
 2D_traindata_with_hand
+models_dd2voz_hand
+missing_merge.txt

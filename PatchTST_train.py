@@ -4,17 +4,12 @@ import torch.optim as optim
 import numpy as np
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-from torch.nn import CrossEntropyLoss
-from torch.utils.data import WeightedRandomSampler
 import matplotlib.pyplot as plt
 import time
-import argparse
 from sklearn.metrics import multilabel_confusion_matrix
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from collections import Counter
+from sklearn.metrics import ConfusionMatrixDisplay
 import random
 from models import PatchTSTClassifier
-from torchsummary import summary
 from sklearn.metrics import f1_score
 
 def set_seed(seed):
@@ -177,7 +172,7 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
 
     for i in range(n_classes):
         disp = ConfusionMatrixDisplay(confusion_matrix=cm[i], display_labels=['False', 'True'])
-        disp.plot(include_values=True, cmap="viridis", ax=axes[i], 
+        disp.plot(include_values=True, cmap="Blues", ax=axes[i], 
                 xticks_rotation="horizontal", values_format="d")
         axes[i].set_title(f'Class: {classes[i]}')
 
@@ -194,7 +189,7 @@ if __name__ == "__main__":
     from dataset import Dataset_TST
     dataset = os.path.join(os.getcwd(), 'dataset')
     full_dataset = Dataset_TST(dataset)
-    save_dir = f'./model_TST'
+    save_dir = f'./model_TST/3'
     input_dim = full_dataset.dim
     print('Input dimention',input_dim)
     
@@ -221,9 +216,9 @@ if __name__ == "__main__":
         )
         train_labels = [full_dataset.labels[i] for i in train_dataset.indices]
 
-        train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
-        valid_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False)
-        test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False)
+        test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
         # 訓練與測試
         model = PatchTSTClassifier(input_dim).to(device)
@@ -239,8 +234,7 @@ if __name__ == "__main__":
         avg_loss, f1, avg_time_per_sample = test_model_with_path_tracking(
             model, test_loader, test_dataset, criterion, save_dir, save_path, full_dataset
         )
-
-        print(f"Seed {se} Test F1: {f1:.4f}")
+        print(f"Seed {se} Test F1: {f1:.4f}, cost {avg_time_per_sample} sec")
         all_f1_scores.append(f1)
 
         if f1 > best_f1:
