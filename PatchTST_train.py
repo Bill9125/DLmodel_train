@@ -189,7 +189,7 @@ if __name__ == "__main__":
     from dataset import Dataset_TST
     dataset = os.path.join(os.getcwd(), 'dataset')
     full_dataset = Dataset_TST(dataset)
-    save_dir = f'./model_TST/3'
+    save_dir = f'./model_TST/6'
     input_dim = full_dataset.dim
     print('Input dimention',input_dim)
     
@@ -209,12 +209,14 @@ if __name__ == "__main__":
 
         # 分割資料
         gen = torch.Generator().manual_seed(se)  # 為每個seed創建獨立生成器
-        train_dataset, valid_dataset, test_dataset = random_split(
-            full_dataset, 
-            [train_size, valid_size, test_size],
+        train_indices, valid_indices, test_indices = random_split(
+            range(len(full_dataset)), [train_size, valid_size, test_size],
             generator=gen
         )
-        train_labels = [full_dataset.labels[i] for i in train_dataset.indices]
+        
+        train_dataset = torch.utils.data.Subset(Dataset_TST(dataset, transform=True), train_indices)
+        valid_dataset = torch.utils.data.Subset(Dataset_TST(dataset, transform=False), valid_indices)
+        test_dataset  = torch.utils.data.Subset(Dataset_TST(dataset, transform=False), test_indices)
 
         train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
         valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False)
