@@ -187,9 +187,10 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     from dataset import Dataset_TST
-    dataset = os.path.join(os.getcwd(), 'dataset')
+    from dataset import TransformSubset
+    dataset = os.path.join(os.getcwd(), '2D_traindata_with_hand_new')
     full_dataset = Dataset_TST(dataset)
-    save_dir = f'./model_TST/6'
+    save_dir = f'./model_TST/7'
     input_dim = full_dataset.dim
     print('Input dimention',input_dim)
     
@@ -214,9 +215,9 @@ if __name__ == "__main__":
             generator=gen
         )
         
-        train_dataset = torch.utils.data.Subset(Dataset_TST(dataset, transform=True), train_indices)
-        valid_dataset = torch.utils.data.Subset(Dataset_TST(dataset, transform=False), valid_indices)
-        test_dataset  = torch.utils.data.Subset(Dataset_TST(dataset, transform=False), test_indices)
+        train_dataset = TransformSubset(full_dataset, train_indices, transform=True)
+        valid_dataset = TransformSubset(full_dataset, valid_indices, transform=False)
+        test_dataset  = TransformSubset(full_dataset, test_indices, transform=False)
 
         train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
         valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False)

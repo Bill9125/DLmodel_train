@@ -9,6 +9,6 @@ models_SHAP
 models_3D
 model_TST
 __pycache__
-2D_traindata_with_hand
+2D_traindata_with_hand_new
 models_dd2voz_hand
 missing_merge.txt

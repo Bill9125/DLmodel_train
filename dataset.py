@@ -446,10 +446,10 @@ class Dataset_TST(Dataset):
         x = self.features[idx]
         y = self.labels[idx]
         
-        # if self.transform:
-        #     stretch_factor = random.uniform(0.8, 1.2)  # 在 0.8 到 1.2 之間隨機拉伸
-        #     x = self.time_stretch(x, stretch_factor)
-        #     x = self.add_gaussian_noise(x, std=0.01)
+        if self.transform:
+            stretch_factor = random.uniform(0.8, 1.2)  # 在 0.8 到 1.2 之間隨機拉伸
+            x = self.time_stretch(x, stretch_factor)
+            x = self.add_gaussian_noise(x, std=0.01)
             
         return x, y, idx
     
@@ -508,3 +508,20 @@ class Dataset_TST(Dataset):
                 if len(data_per_ind) == 110:  # 达到110帧时返回
                     yield data_per_ind
                     data_per_ind = []
+
+class TransformSubset(torch.utils.data.Dataset):
+    def __init__(self, dataset, indices, transform=False):
+        self.dataset = dataset
+        self.indices = indices
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        x, y, true_idx = self.dataset[self.indices[idx]]
+        if self.transform:
+            stretch_factor = random.uniform(0.8, 1.2)
+            x = self.dataset.time_stretch(x, stretch_factor)
+            x = self.dataset.add_gaussian_noise(x, std=0.01)
+        return x, y, true_idx
