@@ -8,7 +8,8 @@ models_dd2voz
 models_z
 models_SHAP
 models_3D
-model_TST
+model_TST_Deadlift
+model_TST_Benchpress
 __pycache__
 2D_traindata_with_hand_new
 models_dd2voz_hand

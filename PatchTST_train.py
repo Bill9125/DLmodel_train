@@ -172,7 +172,7 @@ if __name__ == "__main__":
     if args.sport == 'deadlift':
         dataset = os.path.join(os.getcwd(), '3D_traindata')
         full_dataset = Dataset_TST_Deadlift(dataset)
-        save_dir = f'./model_TST/8'
+        save_dir = f'./model_TST_Deadlift/8'
         num_classes = 4
     elif args.sport == 'benchpress':
         dataset = os.path.join(os.getcwd(), 'BPdata', 'bench_press_multilabel_dataset_cut3.csv')
