@@ -182,8 +182,11 @@ class Dataset_TST_Benchpress(Dataset):
 
             count += 1
             if count == 100:
-                self.features.append(torch.tensor(tmp_data).float())      # append 100 rows
-                self.labels.append(torch.tensor(label).float())         # append 1 label per 100 rows
+                block = np.array(tmp_data)  # shape = (100, 27)
+                self.features.append(torch.tensor(block).float())
+
+                self.labels.append(torch.tensor(label).float())
+
                 tmp_data = []
                 count = 0
 
