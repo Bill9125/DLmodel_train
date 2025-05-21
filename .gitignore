@@ -3,6 +3,7 @@
 .ipynb_checkpoints
 2D_traindata
 3D_traindata
+BPdata
 models_dd2voz
 models_z
 models_SHAP
