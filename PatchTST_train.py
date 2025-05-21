@@ -173,10 +173,12 @@ if __name__ == "__main__":
         dataset = os.path.join(os.getcwd(), '3D_traindata')
         full_dataset = Dataset_TST_Deadlift(dataset)
         save_dir = f'./model_TST/8'
+        num_classes = 4
     elif args.sport == 'benchpress':
         dataset = os.path.join(os.getcwd(), 'BPdata', 'bench_press_multilabel_dataset_cut3.csv')
         full_dataset = Dataset_TST_Benchpress(dataset)
         save_dir = f'./model_TST_Benchpress/1'
+        num_classes = 5
     input_dim = full_dataset.dim
     print('Input dimention',input_dim)
     
@@ -210,7 +212,7 @@ if __name__ == "__main__":
         test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
         # 訓練與測試
-        model = PatchTSTClassifier(input_dim).to(device)
+        model = PatchTSTClassifier(input_dim, num_classes).to(device)
         optimizer = optim.Adam(model.parameters(), lr=0.0001)
         criterion = torch.nn.BCEWithLogitsLoss()
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)

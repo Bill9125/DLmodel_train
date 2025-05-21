@@ -162,16 +162,34 @@ class Dataset_TST_Deadlift(Dataset):
         return self.sample_paths[idx]
     
 class Dataset_TST_Benchpress(Dataset):
-    def __init__(self, dataset_root, transform = False):
+    def __init__(self, dataset_root, transform=False):
         self.sample_paths = []  
-        self.data = {}
         self.features = []
         self.labels = []
-        self.dim = int
         self.transform = transform
         
-        df = pd.read_csv(dataset_root)
-        print(df)
+        df = pd.read_csv(dataset_root, skiprows=1)
+        count = 0
+        tmp_data = []
+
+        for _, row in df.iterrows():
+            data = row.iloc[0:27].values.astype(float)
+            label = row.iloc[28:34].values.astype(int)
+            path = row.iloc[-1]
+
+            tmp_data.append(data)
+            self.sample_paths.append(path)
+
+            count += 1
+            if count == 100:
+                self.features.append(torch.tensor(tmp_data).float())      # append 100 rows
+                self.labels.append(torch.tensor(label).float())         # append 1 label per 100 rows
+                tmp_data = []
+                count = 0
+
+        self.features = np.array(self.features).reshape(-1, 100, 27)  # (N, 100, 27)
+        self.labels = np.array(self.labels)  # (N, 7)
+        self.dim = self.features.shape[-1]
 
     def __len__(self):
         return len(self.features)
