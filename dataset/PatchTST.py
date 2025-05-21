@@ -174,7 +174,7 @@ class Dataset_TST_Benchpress(Dataset):
 
         for _, row in df.iterrows():
             data = row.iloc[0:27].values.astype(float)
-            label = row.iloc[28:34].values.astype(int)
+            label = row.iloc[28:33].values.astype(int)
             path = row.iloc[-1]
 
             tmp_data.append(data)
