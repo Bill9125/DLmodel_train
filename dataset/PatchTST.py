@@ -149,7 +149,7 @@ class Dataset_TST(Dataset):
             self.sample_paths.append(file)
             
             for num in zip(*parsed_data):
-                # 將 num 裡的數據變成 25*1 
+                # 將 num 裡的數據 flatten 
                 frame_data = [item for sublist in num for item in sublist]
                 self.dim = len(frame_data)
                 data_per_ind.append(frame_data)

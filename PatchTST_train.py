@@ -8,34 +8,10 @@ import matplotlib.pyplot as plt
 import time
 from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.metrics import ConfusionMatrixDisplay
-import random
 from models import PatchTSTClassifier
 from sklearn.metrics import f1_score
-
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # 如果使用多張 GPU
-
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+from tools import *
     
-def compute_f1_score(model, data_loader):
-    model.eval()
-    y_true, y_pred = [], []
-    
-    with torch.no_grad():
-        for inputs, labels, indices in data_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            probs = torch.sigmoid(outputs)  # [B, num_classes]
-            preds = (probs > 0.5).int()     # [B, num_classes]
-            y_true.extend(labels.cpu().numpy().tolist())    # labels shape: (batch, num_classes)
-            y_pred.extend(preds.tolist())                   # preds shape: (batch, num_classes)
-
-    return f1_score(y_true, y_pred, average='macro')
 
 def train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path, num_epochs=100, patience=8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -114,11 +90,14 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
     model.to(device)
     model.eval()
     
+    model_name = os.path.splitext(os.path.basename(save_path))[0]
+    txt_dir = os.path.join(save_dir, f"{model_name}_results")
+    os.makedirs(txt_dir, exist_ok=True)
+    
+    # **存放測試過程的數據**
     total_loss, total_time = 0.0, 0.0  
     y_true, y_pred = [], []
-
-    # false_positives = []
-    # false_negatives = []
+    cm_details = {str(i): [] for i in range(16)}  # 4 x 4 = 16 格子
     
     with torch.no_grad():
         for inputs, labels, indices in test_loader:
@@ -134,14 +113,22 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
             probs = torch.sigmoid(outputs)  # [B, num_classes]
             preds = (probs > 0.5).int()     # [B, num_classes]
 
-            # for i in range(len(inputs)):  # 只迭代當前批次中的實際樣本數量
-            #     sample_idx = indices[i].item()  # 直接拿到 full_dataset index！
-            #     detailed_path = full_dataset.get_sample_path(sample_idx)
-                
-            #     if predicted[i] == 1 and labels[i] == 0:
-            #         false_positives.append(f"{str(detailed_path)}")
-            #     elif predicted[i] == 0 and labels[i] == 1:
-            #         false_negatives.append(f"{str(detailed_path)}")
+            for i in range(len(inputs)):
+                sample_idx = indices[i].item()
+                detailed_path = full_dataset.get_sample_path(sample_idx)
+
+                # labels/preds shape: (B, 4)
+                true_vec = labels[i].cpu().numpy()
+                pred_vec = preds[i].cpu().numpy()
+
+                if true_vec.sum() == 0 and pred_vec.sum() == 0:
+                    continue  # 忽略全0樣本（屬於Category_0）
+
+                # 找出 true_label 和 pred_label
+                true_label = np.argmax(true_vec)
+                pred_label = np.argmax(pred_vec)
+                cm_index = true_label * 4 + pred_label
+                cm_details[str(cm_index)].append(str(detailed_path))  # append 路徑
                     
             y_true.extend(labels.cpu().numpy().tolist())    # labels shape: (batch, num_classes)
             y_pred.extend(preds.tolist())                   # preds shape: (batch, num_classes)
@@ -150,19 +137,7 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
     avg_time_per_sample = total_time / len(y_true)
     f1 = f1_score(y_true, y_pred, average='macro')
 
-    model_name = os.path.splitext(os.path.basename(save_path))[0]
-    txt_dir = os.path.join(save_dir, f"{model_name}_results")
-    os.makedirs(txt_dir, exist_ok=True)
-
-    # with open(f"{txt_dir}/false_positives.txt", "w") as fp_file:
-    #     fp_file.write("\n".join(false_positives))
-    
-    # with open(f"{txt_dir}/false_negatives.txt", "w") as fn_file:
-    #     fn_file.write("\n".join(false_negatives))
-        
-    # print(f"共有 {len(false_positives)} FP，{len(false_negatives)} FN")
-    # print(f"已保存到 {txt_dir}/false_positives.txt 和 false_negatives.txt")
-
+    # 繪製混淆矩陣
     classes = ['The barbell is moving away from the shins', 'Hips rise before the barbell leaves the ground',
                'The barbell collides with the knees', 'Lower back rounding']
     cm = multilabel_confusion_matrix(y_true, y_pred, sample_weight=None, labels=None, samplewise=False)
@@ -179,18 +154,21 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
     plt.tight_layout()
     plt.savefig(f"{txt_dir}/confusion_matrix.png")
     plt.close()
+    
+    cm = multilabel_confusion_matrix_4x4(y_true, y_pred, n_classes=4)
+    plot_custom_confusion_matrix(cm, classes, f"{txt_dir}/4*4_confusion_matrix.png")
+    with open(f"{txt_dir}/confusion_matrix_detail_paths.json", "w", encoding="utf-8") as f:
+        json.dump(cm_details, f, indent=2, ensure_ascii=False)
 
     return avg_loss, f1, avg_time_per_sample
-
     
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    from dataset import Dataset_TST
-    from dataset import TransformSubset
-    dataset = os.path.join(os.getcwd(), '2D_traindata_with_hand_new')
+    from dataset.PatchTST import *
+    dataset = os.path.join(os.getcwd(), '3D_traindata')
     full_dataset = Dataset_TST(dataset)
-    save_dir = f'./model_TST/7'
+    save_dir = f'./model_TST/8'
     input_dim = full_dataset.dim
     print('Input dimention',input_dim)
     
