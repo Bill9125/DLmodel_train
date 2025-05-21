@@ -98,7 +98,7 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
     # **存放測試過程的數據**
     total_loss, total_time = 0.0, 0.0  
     y_true, y_pred = [], []
-    cm_details = {str(i): [] for i in range(16)}  # 4 x 4 = 16 格子
+    cm_details = {str(i): [] for i in range(25)}  # 4 x 4 = 16 格子
     
     with torch.no_grad():
         for inputs, labels, indices in test_loader:
@@ -128,7 +128,7 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
                 # 找出 true_label 和 pred_label
                 true_label = np.argmax(true_vec)
                 pred_label = np.argmax(pred_vec)
-                cm_index = true_label * 4 + pred_label
+                cm_index = true_label * 5 + pred_label
                 cm_details[str(cm_index)].append(str(detailed_path))  # append 路徑
                     
             y_true.extend(labels.cpu().numpy().tolist())    # labels shape: (batch, num_classes)
@@ -139,7 +139,7 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
     f1 = f1_score(y_true, y_pred, average='macro')
 
     # 繪製混淆矩陣
-    classes = [str(i) for i in range(1, 5)]
+    classes = [str(i) for i in range(1, 6)]
     cm = multilabel_confusion_matrix(y_true, y_pred, sample_weight=None, labels=None, samplewise=False)
     n_classes = cm.shape[0]
     fig, axes = plt.subplots(nrows=(n_classes+1)//2, ncols=2, figsize=(12, 10))
@@ -155,7 +155,7 @@ def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, s
     plt.savefig(f"{txt_dir}/confusion_matrix.png")
     plt.close()
     
-    cm = multilabel_confusion_matrix_4x4(y_true, y_pred, n_classes=4)
+    cm = multilabel_confusion_matrix_4x4(y_true, y_pred, n_classes=5)
     plot_custom_confusion_matrix(cm, classes, f"{txt_dir}/confusion_matrix_mix.png")
     with open(f"{txt_dir}/confusion_matrix_detail_paths.json", "w", encoding="utf-8") as f:
         json.dump(cm_details, f, indent=2, ensure_ascii=False)
