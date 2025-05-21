@@ -52,8 +52,8 @@ class Dataset_TST_Deadlift(Dataset):
             print(label_str, 'category have', len(recordings), 'videos')
 
         # 寫入 JSON
-        os.makedirs("./model_TST", exist_ok=True)
-        with open("./model_TST/label.json", "w", encoding="utf-8") as f:
+        os.makedirs(dataset_root, exist_ok=True)
+        with open(os.path.join(dataset_root, 'label.json'), "w", encoding="utf-8") as f:
             json.dump(self.data, f, indent=4, ensure_ascii=False)    
         
         for recording, label in list(self.data.items()):
