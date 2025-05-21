@@ -101,6 +101,7 @@ def test_model_with_path_tracking(model, test_loader, criterion, save_dir, save_
     with torch.no_grad():
         for inputs, labels, indices in test_loader:
             inputs, labels = inputs.to(device), labels.to(device)
+            print(inputs.ndim)
 
             start_time = time.time()
             outputs = model(inputs)
