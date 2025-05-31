@@ -51,7 +51,7 @@ def plot_custom_confusion_matrix(cm, class_names, save_path):
     ax.set_title("Pastch TST Confusion Matrix")
     ax.set_xticks(np.arange(len(class_names)))
     ax.set_yticks(np.arange(len(class_names)))
-    ax.set_xticklabels(class_names, rotation=45, ha="right")
+    ax.set_xticklabels(class_names, ha="right")
     ax.set_yticklabels(class_names)
 
     # 顯示數值與百分比
