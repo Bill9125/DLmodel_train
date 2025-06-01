@@ -90,13 +90,13 @@ if __name__ == "__main__":
     
     from dataset.PatchTST import *
     if args.sport == 'deadlift':
-        dataset = os.path.join(os.getcwd(), '2D_traindata_bodylength_vision1')
+        dataset = os.path.join(os.getcwd(), 'data', '2D_traindata_bodylength_vision1')
         full_dataset = Dataset_TST_Deadlift(dataset)
         save_dir = f'./model_TST_Deadlift/9'
         num_classes = 4
         input_len = 110
     elif args.sport == 'benchpress':
-        dataset = os.path.join(os.getcwd(), 'BPdata', 'bench_press_multilabel_dataset_cut3.csv')
+        dataset = os.path.join(os.getcwd(), 'data', 'BPdata', 'bench_press_multilabel_dataset_cut3.csv')
         full_dataset = Dataset_TST_Benchpress(dataset)
         save_dir = f'./model_TST_Benchpress/1'
         num_classes = 5

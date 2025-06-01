@@ -30,7 +30,7 @@ def compute_f1_score(model, data_loader):
 
     return f1_score(y_true, y_pred, average='macro')
 
-def multilabel_confusion_matrix_4x4(y_true, y_pred, n_classes):
+def multilabel_confusion_matrix_mix(y_true, y_pred, n_classes):
     cm = np.zeros((n_classes, n_classes), dtype=int)
 
     for yt, yp in zip(y_true, y_pred):
@@ -41,7 +41,6 @@ def multilabel_confusion_matrix_4x4(y_true, y_pred, n_classes):
         for t in true_classes:
             for p in pred_classes:
                 cm[t][p] += 1
-
     return cm
 
 def plot_custom_confusion_matrix(cm, class_names, save_path):
