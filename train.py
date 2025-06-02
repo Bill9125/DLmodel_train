@@ -247,9 +247,9 @@ if __name__ == "__main__":
     if SHAP_mode is None:
         if F_type == '2D':
             from dataset import Dataset_dd2voz
-            datasets_path = os.path.join(os.getcwd(), '2D_traindata_bodylength_vision1')
+            datasets_path = os.path.join(os.getcwd(), 'data', '2D_traindata_bodylength_vision1')
             full_dataset = Dataset_dd2voz(datasets_path, GT_class)
-            save_dir = f'./models_dd2voz_vision1_body/{GT_class}'
+            save_dir = os.path.join(os.getcwd(), 'models', f'dd2voz_vision1_body/{GT_class}')
             
         elif F_type == '3D':
             from dataset import Dataset_3D
