@@ -90,9 +90,9 @@ if __name__ == "__main__":
     
     from dataset.PatchTST import *
     if args.sport == 'deadlift':
-        dataset = os.path.join(os.getcwd(), 'data', '2D_traindata_bodylength_vision1')
+        dataset = os.path.join(os.getcwd(), 'data', '3D_traindata')
         full_dataset = Dataset_TST_Deadlift(dataset)
-        save_dir = f'./model_TST_Deadlift/9'
+        save_dir = f'./models/TST_Deadlift/8'
         num_classes = 4
         input_len = 110
     elif args.sport == 'benchpress':
@@ -113,6 +113,8 @@ if __name__ == "__main__":
     best_model_path = ""
 
     all_f1_scores = []
+    cost_times = []
+    accuracies = []
     seeds = [42, 2023, 7, 88, 100, 999]
 
     for se in seeds:
@@ -144,35 +146,17 @@ if __name__ == "__main__":
 
         train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path)
 
-        avg_loss, f1, avg_time_per_sample = test_model_with_path_tracking(
+        avg_loss, f1, avg_time_per_sample, accuracy = test_model_with_path_tracking(
             model, test_loader, criterion, save_dir, save_path, full_dataset, num_classes
         )
-        print(f"Seed {se} Test F1: {f1:.4f}, cost {avg_time_per_sample} sec")
+        print(f"Seed {se} Test F1: {f1:.4f}, Accuracy: {accuracy:.4f}, cost {avg_time_per_sample} sec")
         all_f1_scores.append(f1)
+        cost_times.append(avg_time_per_sample)
+        accuracies.append(accuracy)
 
         if f1 > best_f1:
             best_f1 = f1
             best_seed = se
             best_model_path = save_path
 
-    # 🔍 顯示結果 & 建立結果字串
-    summary_lines = []
-    summary_lines.append("\n✅ F1 scores from each seed:")
-    for se, f1 in zip(seeds, all_f1_scores):
-        summary_lines.append(f"Seed {se}: F1 = {f1:.4f}")
-
-    summary_lines.append(f"\n📊 Average F1 Score: {np.mean(all_f1_scores):.4f} ± {np.std(all_f1_scores):.4f}")
-    summary_lines.append(f"🏆 Best F1: {best_f1:.4f} from Seed {best_seed}")
-    summary_lines.append(f"📁 Best model saved at: {best_model_path}")
-
-    # 印出結果到 terminal
-    for line in summary_lines:
-        print(line)
-
-    # 📄 寫入 txt 檔案
-    txt_output_path = os.path.join(save_dir, "results_summary.txt")
-    with open(txt_output_path, "w", encoding="utf-8") as f:
-        for line in summary_lines:
-            f.write(line + "\n")
-
-    print(f"\n✅ 寫入完成：{txt_output_path}")
+    write_result(seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path)

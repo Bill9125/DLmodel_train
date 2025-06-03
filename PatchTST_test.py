@@ -11,7 +11,7 @@ from tools import *
 import argparse
 from torch.utils.data import DataLoader, random_split
 from models import PatchTSTClassifier
-import torch.optim as optim
+from sklearn.metrics import accuracy_score
 
 
 def test_model_with_path_tracking(model, test_loader, criterion, save_dir, save_path, full_dataset, num_classes):
@@ -74,7 +74,9 @@ def test_model_with_path_tracking(model, test_loader, criterion, save_dir, save_
     f1 = f1_score(y_true, y_pred, average='macro')
 
     # 繪製混淆矩陣
-    classes = [str(i) for i in range(1, num_classes+1)]
+    binary_classes = ['The barbell is moving away from the shins.', 'Hips rise before the barbell leaves the ground.', 'The barbell collides with the knees.', 'Lower back rounding']
+    classes = ['Correct', 'Far from the shins', 'Hips rise first', 'Collide with the knees', 'Lower back rounding']
+    
     cm = multilabel_confusion_matrix(y_true, y_pred, sample_weight=None, labels=None, samplewise=False)
     n_classes = cm.shape[0]
     fig, axes = plt.subplots(nrows=(n_classes+1)//2, ncols=2, figsize=(12, 10))
@@ -84,7 +86,7 @@ def test_model_with_path_tracking(model, test_loader, criterion, save_dir, save_
         disp = ConfusionMatrixDisplay(confusion_matrix=cm[i], display_labels=['False', 'True'])
         disp.plot(include_values=True, cmap="Blues", ax=axes[i], 
                 xticks_rotation="horizontal", values_format="d")
-        axes[i].set_title(f'Class: {classes[i]}')
+        axes[i].set_title(f'Class: {binary_classes[i]}')
 
     plt.tight_layout()
     plt.savefig(f"{txt_dir}/confusion_matrix.png")
@@ -94,8 +96,9 @@ def test_model_with_path_tracking(model, test_loader, criterion, save_dir, save_
     plot_custom_confusion_matrix(cm, classes, f"{txt_dir}/confusion_matrix_mix.png")
     with open(f"{txt_dir}/confusion_matrix_detail_paths.json", "w", encoding="utf-8") as f:
         json.dump(cm_details, f, indent=2, ensure_ascii=False)
+    accuracy = accuracy_score(y_true, y_pred)    
 
-    return avg_loss, f1, avg_time_per_sample
+    return avg_loss, f1, avg_time_per_sample, accuracy
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -105,17 +108,19 @@ if __name__ == "__main__":
     
     from dataset.PatchTST import *
     if args.sport == 'deadlift':
-        dataset = os.path.join(os.getcwd(), '2D_traindata_bodylength_vision1')
+        dataset = os.path.join(os.getcwd(), 'data', '2D_traindata')
         full_dataset = Dataset_TST_Deadlift(dataset)
-        save_dir = f'./model_TST_Deadlift/9'
+        save_dir = f'./models/TST_Deadlift/3'
         num_classes = 4
         input_len = 110
+        
     elif args.sport == 'benchpress':
         dataset = os.path.join(os.getcwd(), 'BPdata', 'bench_press_multilabel_dataset_cut3.csv')
         full_dataset = Dataset_TST_Benchpress(dataset)
         save_dir = f'./model_TST_Benchpress/1'
         num_classes = 5
         input_len = 100
+        
     input_dim = full_dataset.dim
     print('Input dimention',input_dim)
     
@@ -128,6 +133,8 @@ if __name__ == "__main__":
     best_model_path = ""
 
     all_f1_scores = []
+    cost_times = []
+    accuracies = []
     seeds = [42, 2023, 7, 88, 100, 999]
     
     for se in seeds:
@@ -155,35 +162,17 @@ if __name__ == "__main__":
         save_path = os.path.join(save_dir, f"PatchTST_model_seed{se}.pth")
         fig_path = os.path.join(save_dir, f"PatchTST_train_results_seed{se}.png")
         
-        avg_loss, f1, avg_time_per_sample = test_model_with_path_tracking(
+        avg_loss, f1, avg_time_per_sample, accuracy = test_model_with_path_tracking(
             model, test_loader, criterion, save_dir, save_path, full_dataset, num_classes
         )
-        print(f"Seed {se} Test F1: {f1:.4f}, cost {avg_time_per_sample} sec")
+        print(f"Seed {se} Test F1: {f1:.4f}, Accuracy: {accuracy:.4f}, cost {avg_time_per_sample} sec")
         all_f1_scores.append(f1)
+        cost_times.append(avg_time_per_sample)
+        accuracies.append(accuracy)
 
         if f1 > best_f1:
             best_f1 = f1
             best_seed = se
             best_model_path = save_path
 
-    # 🔍 顯示結果 & 建立結果字串
-    summary_lines = []
-    summary_lines.append("\n✅ F1 scores from each seed:")
-    for se, f1 in zip(seeds, all_f1_scores):
-        summary_lines.append(f"Seed {se}: F1 = {f1:.4f}")
-
-    summary_lines.append(f"\n📊 Average F1 Score: {np.mean(all_f1_scores):.4f} ± {np.std(all_f1_scores):.4f}")
-    summary_lines.append(f"🏆 Best F1: {best_f1:.4f} from Seed {best_seed}")
-    summary_lines.append(f"📁 Best model saved at: {best_model_path}")
-
-    # 印出結果到 terminal
-    for line in summary_lines:
-        print(line)
-
-    # 📄 寫入 txt 檔案
-    txt_output_path = os.path.join(save_dir, "results_summary.txt")
-    with open(txt_output_path, "w", encoding="utf-8") as f:
-        for line in summary_lines:
-            f.write(line + "\n")
-
-    print(f"\n✅ 寫入完成：{txt_output_path}")
+    write_result(seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path)

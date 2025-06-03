@@ -1,6 +1,6 @@
 import random
 import numpy as np
-import torch
+import torch, os
 from sklearn.metrics import f1_score
 import matplotlib.pyplot as plt
 
@@ -31,16 +31,31 @@ def compute_f1_score(model, data_loader):
     return f1_score(y_true, y_pred, average='macro')
 
 def multilabel_confusion_matrix_mix(y_true, y_pred, n_classes):
-    cm = np.zeros((n_classes, n_classes), dtype=int)
+    cm = np.zeros((n_classes + 1, n_classes + 1), dtype=int)  # +1 for Category_0
+    offset = 1  # shift actual class indices by +1
+    dummy_class = 0  # Category_0 index
 
     for yt, yp in zip(y_true, y_pred):
-        # 對每一個 ground truth 的正類別都視為一筆單一分類樣本
-        true_classes = np.where(np.array(yt) == 1)[0]
-        pred_classes = np.where(np.array(yp) == 1)[0]
+        yt = np.array(yt)
+        yp = np.array(yp)
+
+        true_classes = np.where(yt == 1)[0]
+        pred_classes = np.where(yp == 1)[0]
+
+        if len(true_classes) == 0:
+            true_classes = [dummy_class]
+        else:
+            true_classes = [c + offset for c in true_classes]
+
+        if len(pred_classes) == 0:
+            pred_classes = [dummy_class]
+        else:
+            pred_classes = [c + offset for c in pred_classes]
 
         for t in true_classes:
             for p in pred_classes:
                 cm[t][p] += 1
+
     return cm
 
 def plot_custom_confusion_matrix(cm, class_names, save_path):
@@ -50,7 +65,7 @@ def plot_custom_confusion_matrix(cm, class_names, save_path):
     ax.set_title("Pastch TST Confusion Matrix")
     ax.set_xticks(np.arange(len(class_names)))
     ax.set_yticks(np.arange(len(class_names)))
-    ax.set_xticklabels(class_names, ha="right")
+    ax.set_xticklabels(class_names, ha="right", rotation=45)
     ax.set_yticklabels(class_names)
 
     # 顯示數值與百分比
@@ -74,3 +89,26 @@ def plot_custom_confusion_matrix(cm, class_names, save_path):
     plt.colorbar(im, ax=ax)
     plt.savefig(save_path)
     plt.close()
+    
+def write_result(seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path):
+    # 🔍 顯示結果 & 建立結果字串
+    summary_lines = []
+    summary_lines.append("\n✅ F1 scores from each seed:")
+    for se, f1, ac, co in zip(seeds, all_f1_scores, accuracies, cost_times):
+        summary_lines.append(f"Seed {se}: F1 = {f1:.4f}, Accuracy: {ac:.4f}, cost time = {co:.6f} sec")
+
+    summary_lines.append(f"\n📊 Average F1 Score: {np.mean(all_f1_scores):.4f} ± {np.std(all_f1_scores):.4f}")
+    summary_lines.append(f"🏆 Best F1: {best_f1:.4f} from Seed {best_seed}")
+    summary_lines.append(f"📁 Best model saved at: {best_model_path}")
+
+    # 印出結果到 terminal
+    for line in summary_lines:
+        print(line)
+
+    # 📄 寫入 txt 檔案
+    txt_output_path = os.path.join(save_dir, "results_summary.txt")
+    with open(txt_output_path, "w", encoding="utf-8") as f:
+        for line in summary_lines:
+            f.write(line + "\n")
+
+    print(f"\n✅ 寫入完成：{txt_output_path}")
