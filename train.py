@@ -7,77 +7,10 @@ from tqdm import tqdm
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import WeightedRandomSampler
 import matplotlib.pyplot as plt
-import time
 import argparse
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from collections import Counter
-import random
-from models import ResNet32
-from models import PatchTSTClassifier
-from torchsummary import summary
-
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # 如果使用多張 GPU
-
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-# 計算 F1-score 的函數
-def f1_score(y_true, y_pred):
-    # Get unique classes
-    classes = np.unique(np.concatenate((y_true, y_pred)))
-    
-    # Initialize
-    class_f1_scores = {}
-    class_weights = {}
-    
-    # Count instances of each class in true labels
-    total_samples = len(y_true)
-    class_counts = Counter(y_true)
-    
-    # Calculate weights for each class
-    for cls in classes:
-        class_weights[cls] = class_counts.get(cls, 0) / total_samples
-    
-    # For each class, calculate F1 score
-    for cls in classes:
-        # True positives, false positives, false negatives
-        tp = np.sum((y_true == cls) & (y_pred == cls) & ~((y_true == 0) & (y_pred == 0)))
-        fp = np.sum((y_true != cls) & (y_pred == cls))
-        fn = np.sum((y_true == cls) & (y_pred != cls))
-        
-        # Precision and recall
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        
-        # F1 score for this class
-        if precision + recall > 0:
-            class_f1_scores[cls] = 2 * (precision * recall) / (precision + recall)
-        else:
-            class_f1_scores[cls] = 0
-    
-    # Calculate weighted F1 score
-    weighted_f1 = sum(class_weights[cls] * class_f1_scores[cls] for cls in classes)
-    return weighted_f1
-
-def compute_f1_score(model, data_loader):
-    model.eval()
-    y_true, y_pred = [], []
-    
-    with torch.no_grad():
-        for inputs, labels, indices in data_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs, 1)
-            
-            y_true.extend(labels.cpu().numpy())
-            y_pred.extend(predicted.cpu().numpy())
-
-    return f1_score(y_true, y_pred)  
+from models import ResNet32, BiLSTMModel
+from tools import set_seed, f1_score, compute_f1_score, write_results
+from test import test_model_with_path_tracking
 
 def train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path, num_epochs=100, patience=8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -161,73 +94,6 @@ def validate_model(model, valid_loader, criterion):
             total_loss += loss.item()
     return total_loss / len(valid_loader)
 
-# ----------------------
-# Testing Function
-# ----------------------
-def test_model_with_path_tracking(model, test_loader, test_dataset, criterion, save_dir, save_path, full_dataset):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.load_state_dict(torch.load(save_path))
-    model.to(device)
-    model.eval()
-    
-    total_loss, total_time = 0.0, 0.0  
-    y_true, y_pred = [], []
-
-    false_positives = []
-    false_negatives = []
-    
-    with torch.no_grad():
-        for inputs, labels, indices in test_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-
-            start_time = time.time()
-            outputs = model(inputs)
-            end_time = time.time()
-            total_time += (end_time - start_time)
-
-            loss = criterion(outputs, labels)
-            total_loss += loss.item()
-            _, predicted = torch.max(outputs, 1)
-
-            for i in range(len(inputs)):  # 只迭代當前批次中的實際樣本數量
-                sample_idx = indices[i].item()  # 直接拿到 full_dataset index！
-                detailed_path = full_dataset.get_sample_path(sample_idx)
-                
-                if predicted[i] == 1 and labels[i] == 0:
-                    false_positives.append(f"{str(detailed_path)}")
-                elif predicted[i] == 0 and labels[i] == 1:
-                    false_negatives.append(f"{str(detailed_path)}")
-                    
-            y_true.extend(labels.cpu().numpy())
-            y_pred.extend(predicted.cpu().numpy())
-
-    avg_loss = total_loss / len(test_loader)
-    avg_time_per_sample = total_time / len(y_true)
-    f1 = f1_score(y_true, y_pred) 
-
-    model_name = os.path.splitext(os.path.basename(save_path))[0]
-    txt_dir = os.path.join(save_dir, f"{model_name}_results")
-    os.makedirs(txt_dir, exist_ok=True)
-
-    with open(f"{txt_dir}/false_positives.txt", "w") as fp_file:
-        fp_file.write("\n".join(false_positives))
-    
-    with open(f"{txt_dir}/false_negatives.txt", "w") as fn_file:
-        fn_file.write("\n".join(false_negatives))
-        
-    print(f"共有 {len(false_positives)} FP，{len(false_negatives)} FN")
-    print(f"已保存到 {txt_dir}/false_positives.txt 和 false_negatives.txt")
-
-    cm = confusion_matrix(y_true, y_pred)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-    plt.figure(figsize=(6, 6))
-    disp.plot(cmap='Blues')
-    plt.title('Confusion Matrix')
-    plt.savefig(f"{txt_dir}/confusion_matrix.png")
-    plt.close()
-
-    return avg_loss, f1, avg_time_per_sample, false_positives, false_negatives
-
                                      
 # ----------------------
 # (6) Main Execution
@@ -249,13 +115,13 @@ if __name__ == "__main__":
             from dataset import Dataset_dd2voz
             datasets_path = os.path.join(os.getcwd(), 'data', '2D_traindata_bodylength_vision1')
             full_dataset = Dataset_dd2voz(datasets_path, GT_class)
-            save_dir = os.path.join(os.getcwd(), 'models', f'dd2voz_vision1_body/{GT_class}')
+            save_dir = os.path.join(os.getcwd(), 'models', 'dd2voz_vision1_body', f'{GT_class}')
             
         elif F_type == '3D':
             from dataset import Dataset_3D
-            datasets_path = os.path.join(os.getcwd(), '3D_traindata')
+            datasets_path = os.path.join(os.getcwd(), 'data', '3D_traindata')
             full_dataset = Dataset_3D(datasets_path, GT_class)
-            save_dir = f'./models_3D/{GT_class}'
+            save_dir = os.path.join(os.getcwd(), 'models', '3D', f'{GT_class}')
         input_dim = full_dataset.dim
         print('input_dim',input_dim)
     
@@ -264,8 +130,8 @@ if __name__ == "__main__":
         datasets_path = os.path.join(os.getcwd(), 'dataset')
         full_dataset = Dataset_SHAP(datasets_path, GT_class, SHAP_mode)
         input_dim = full_dataset.dim
-        save_dir = f'./models_SHAP/{GT_class}/SHAP_{SHAP_mode}'
-    
+        save_dir = os.path.join(os.getcwd(), 'models_SHAP', f'{GT_class}', f'SHAP_{SHAP_mode}')
+
     category_ratio = full_dataset.get_ratio()
     print(f'Category : {category_ratio}')
     train_size = int(0.75 * len(full_dataset))
@@ -277,6 +143,8 @@ if __name__ == "__main__":
     best_model_path = ""
 
     all_f1_scores = []
+    all_avg_times = []
+    all_acc = []
     seeds = [42, 2023, 7, 88, 100, 999]
 
     for se in seeds:
@@ -308,36 +176,18 @@ if __name__ == "__main__":
 
         train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path)
 
-        avg_loss, f1, avg_time_per_sample, false_positives, false_negatives = test_model_with_path_tracking(
+        avg_loss, f1, acc, avg_time_per_sample, false_positives, false_negatives = test_model_with_path_tracking(
             model, test_loader, test_dataset, criterion, save_dir, save_path, full_dataset
         )
 
         print(f"Seed {se} Test F1: {f1:.4f}")
         all_f1_scores.append(f1)
+        all_avg_times.append(avg_time_per_sample)
+        all_acc.append(acc)
 
         if f1 > best_f1:
             best_f1 = f1
             best_seed = se
             best_model_path = save_path
 
-    # 🔍 顯示結果 & 建立結果字串
-    summary_lines = []
-    summary_lines.append("\n✅ F1 scores from each seed:")
-    for se, f1 in zip(seeds, all_f1_scores):
-        summary_lines.append(f"Seed {se}: F1 = {f1:.4f}")
-
-    summary_lines.append(f"\n📊 Average F1 Score: {np.mean(all_f1_scores):.4f} ± {np.std(all_f1_scores):.4f}")
-    summary_lines.append(f"🏆 Best F1: {best_f1:.4f} from Seed {best_seed}")
-    summary_lines.append(f"📁 Best model saved at: {best_model_path}")
-
-    # 印出結果到 terminal
-    for line in summary_lines:
-        print(line)
-
-    # 📄 寫入 txt 檔案
-    txt_output_path = os.path.join(save_dir, "results_summary.txt")
-    with open(txt_output_path, "w", encoding="utf-8") as f:
-        for line in summary_lines:
-            f.write(line + "\n")
-
-    print(f"\n✅ 寫入完成：{txt_output_path}")
+    write_results(seeds, all_f1_scores, best_f1, best_seed, best_model_path, save_dir)
