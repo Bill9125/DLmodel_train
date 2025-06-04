@@ -175,4 +175,4 @@ if __name__ == "__main__":
             best_seed = se
             best_model_path = save_path
 
-    write_result(seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path)
+    write_result(model, input_dim, seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path)
