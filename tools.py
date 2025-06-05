@@ -3,6 +3,9 @@ import numpy as np
 import torch, os
 from sklearn.metrics import f1_score
 import matplotlib.pyplot as plt
+import io
+import sys
+from torchsummary import summary
 
 def set_seed(seed):
     random.seed(seed)
@@ -90,7 +93,7 @@ def plot_custom_confusion_matrix(cm, class_names, save_path):
     plt.savefig(save_path)
     plt.close()
     
-def write_result(seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path):
+def write_result(model, input_dim, seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path):
     # 🔍 顯示結果 & 建立結果字串
     summary_lines = []
     summary_lines.append("\n✅ F1 scores from each seed:")
@@ -108,7 +111,11 @@ def write_result(seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1
     # 📄 寫入 txt 檔案
     txt_output_path = os.path.join(save_dir, "results_summary.txt")
     with open(txt_output_path, "w", encoding="utf-8") as f:
+        total = sum(p.numel() for p in model.parameters())
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
         for line in summary_lines:
+            f.write(f"Total parameters: {total}\n")
+            f.write(f"Trainable parameters: {trainable}\n")
             f.write(line + "\n")
 
     print(f"\n✅ 寫入完成：{txt_output_path}")
