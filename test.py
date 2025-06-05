@@ -93,9 +93,9 @@ if __name__ == "__main__":
     if SHAP_mode is None:
         if F_type == '2D':
             from dataset import Dataset_dd2voz
-            datasets_path = os.path.join(os.getcwd(), 'data', '2D_traindata_bodylength_vision1')
+            datasets_path = os.path.join(os.getcwd(), 'data', '2D_traindata_Final')
             full_dataset = Dataset_dd2voz(datasets_path, GT_class)
-            save_dir = os.path.join(os.getcwd(), 'models', f'dd2voz_vision1_body/{GT_class}')
+            save_dir = os.path.join(os.getcwd(), 'models', 'dd2voz_Final_BiLSTM', f'{GT_class}')
             
         elif F_type == '3D':
             from dataset import Dataset_3D
@@ -137,13 +137,13 @@ if __name__ == "__main__":
         test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
 
         # 訓練與測試
-        model = ResNet32(input_dim).to(device)
+        model = BiLSTMModel(input_dim).to(device)
         P_ratio = category_ratio[GT_class]
         class_counts = torch.tensor([P_ratio, 1 - P_ratio])
         criterion = CrossEntropyLoss(weight=(1.0 / class_counts).to(device))
 
-        save_path = os.path.join(save_dir, f"ResNet32_model_seed{se}.pth")
-        fig_path = os.path.join(save_dir, f"ResNet32_train_results_seed{se}.png")
+        save_path = os.path.join(save_dir, f"BiLSTM_model_seed{se}.pth")
+        fig_path = os.path.join(save_dir, f"BiLSTM_train_results_seed{se}.png")
 
         avg_loss, f1, acc, avg_time_per_sample, false_positives, false_negatives = test_model_with_path_tracking(
             model, test_loader, test_dataset, criterion, save_dir, save_path, full_dataset
