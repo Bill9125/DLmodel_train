@@ -88,11 +88,8 @@ def write_results(model, input_dim, seeds, all_f1_scores, all_sample_times, all_
     # 📄 寫入 txt 檔案
     txt_output_path = os.path.join(save_dir, "results_summary.txt")
     with open(txt_output_path, "w", encoding="utf-8") as f:
-        buffer = io.StringIO()
-        sys.stdout = buffer
-        summary(model, input_size=(110, input_dim))
-        sys.stdout = sys.__stdout__
-        f.write(buffer.getvalue())
+        total = sum(p.numel() for p in model.parameters())
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
         for line in summary_lines:
             f.write(line + "\n")
 
