@@ -7,6 +7,7 @@ from collections import defaultdict
 import random
 import torch.nn.functional as Fu
 import pandas as pd
+import time
 
 class Dataset_TST_Deadlift(Dataset):
     def __init__(self, dataset_root):
@@ -166,8 +167,10 @@ class Dataset_TST_Benchpress(Dataset):
         tmp_data = []
 
         for _, row in df.iterrows():
+            if row.iloc[28] == 1:
+                continue
             data = row.iloc[0:27].values.astype(float)
-            label = row.iloc[28:33].values.astype(int)
+            label = row.iloc[29:33].values.astype(int)
             path = row.iloc[-1]
 
             tmp_data.append(data)
@@ -177,7 +180,6 @@ class Dataset_TST_Benchpress(Dataset):
             if count == 100:
                 block = np.array(tmp_data)  # shape = (100, 27)
                 self.features.append(torch.tensor(block).float())
-
                 self.labels.append(torch.tensor(label).float())
 
                 tmp_data = []

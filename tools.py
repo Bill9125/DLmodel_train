@@ -110,9 +110,9 @@ def write_result(model, seeds, all_f1_scores, accuracies, cost_times, save_dir, 
     with open(txt_output_path, "w", encoding="utf-8") as f:
         total = sum(p.numel() for p in model.parameters())
         trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        f.write(f"Total parameters: {total}\n")
+        f.write(f"Trainable parameters: {trainable}\n")
         for line in summary_lines:
-            f.write(f"Total parameters: {total}\n")
-            f.write(f"Trainable parameters: {trainable}\n")
             f.write(line + "\n")
 
     print(f"\n✅ 寫入完成：{txt_output_path}")

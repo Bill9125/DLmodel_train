@@ -90,16 +90,16 @@ if __name__ == "__main__":
     
     from dataset.PatchTST import *
     if args.sport == 'deadlift':
-        dataset = os.path.join(os.getcwd(), 'data', '2D_traindata_Final')
+        dataset = os.path.join(os.getcwd(), 'data', '3D_Final')
         full_dataset = Dataset_TST_Deadlift(dataset)
-        save_dir = f'./models/TST_Deadlift/10'
+        save_dir = f'./models/TST_Deadlift/11'
         num_classes = 4
         input_len = 110
     elif args.sport == 'benchpress':
         dataset = os.path.join(os.getcwd(), 'data', 'BPdata', 'bench_press_multilabel_dataset_cut3.csv')
         full_dataset = Dataset_TST_Benchpress(dataset)
-        save_dir = f'./model_TST_Benchpress/1'
-        num_classes = 5
+        save_dir = './models/TST_Benchpress/2'
+        num_classes = 4
         input_len = 100
     input_dim = full_dataset.dim
     print('Input dimention',input_dim)
@@ -159,4 +159,4 @@ if __name__ == "__main__":
             best_seed = se
             best_model_path = save_path
 
-    write_result(model, input_dim, seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path)
+    write_result(model, seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path)

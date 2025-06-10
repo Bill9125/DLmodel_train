@@ -74,6 +74,10 @@ def test_model_with_path_tracking(model, test_loader, criterion, save_dir, save_
     f1 = f1_score(y_true, y_pred, average='macro')
 
     # 繪製混淆矩陣
+    # binary_classes = ['left-side low', 'right-side low', 'shoulder press', 'shoulder up']
+    # classes = ['Correct', 'left-side low', 'right-side low', 'shoulder press', 'shoulder up']
+    # binary_classes = ['wrist press', 'left-side low', 'right-side low', 'shoulder press', 'shoulder up']
+    # classes = ['Correct', 'wrist press', 'left-side low', 'right-side low', 'shoulder press', 'shoulder up']
     binary_classes = ['The barbell is moving away from the shins.', 'Hips rise before the barbell leaves the ground.', 'The barbell collides with the knees.', 'Lower back rounding']
     classes = ['Correct', 'Far from the shins', 'Hips rise first', 'Collide with the knees', 'Lower back rounding']
     
@@ -110,15 +114,15 @@ if __name__ == "__main__":
     if args.sport == 'deadlift':
         dataset = os.path.join(os.getcwd(), 'data', '2D_traindata_bodylength_vision1')
         full_dataset = Dataset_TST_Deadlift(dataset)
-        save_dir = f'./models/TST_Deadlift/9'
+        save_dir = f'./models/TST_Deadlift/11'
         num_classes = 4
         input_len = 110
         
     elif args.sport == 'benchpress':
-        dataset = os.path.join(os.getcwd(), 'BPdata', 'bench_press_multilabel_dataset_cut3.csv')
+        dataset = os.path.join(os.getcwd(), 'data', 'BPdata', 'bench_press_multilabel_dataset_cut3.csv')
         full_dataset = Dataset_TST_Benchpress(dataset)
-        save_dir = f'./model_TST_Benchpress/1'
-        num_classes = 5
+        save_dir = f'./models/TST_Benchpress/2'
+        num_classes = 4
         input_len = 100
         
     input_dim = full_dataset.dim
@@ -175,4 +179,4 @@ if __name__ == "__main__":
             best_seed = se
             best_model_path = save_path
 
-    write_result(model, input_dim, seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path)
+    write_result(model, seeds, all_f1_scores, accuracies, cost_times, save_dir, best_f1, best_seed, best_model_path)
