@@ -96,7 +96,6 @@ def validate_model(model, valid_loader, criterion):
             total_loss += loss.item()
     return total_loss / len(valid_loader)
 
-                                     
 # ----------------------
 # (6) Main Execution
 # ----------------------
@@ -178,11 +177,11 @@ if __name__ == "__main__":
         P_ratio = category_ratio[GT_class]
         class_counts = torch.tensor([P_ratio, 1 - P_ratio])
         criterion = CrossEntropyLoss(weight=(1.0 / class_counts).to(device))
-        optimizer = optim.Adam(model.parameters(), lr=0.001)
+        optimizer = optim.Adam(model.parameters(), lr=0.0001)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
 
-        save_path = os.path.join(save_dir, f"BiLSTM_model_seed{se}.pth")
-        fig_path = os.path.join(save_dir, f"BiLSTM_train_results_seed{se}.png")
+        save_path = os.path.join(save_dir, f"ResNet32_model_seed{se}.pth")
+        fig_path = os.path.join(save_dir, f"ResNet32_train_results_seed{se}.png")
 
         train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path)
 

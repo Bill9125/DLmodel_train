@@ -19,8 +19,8 @@ os.system("python train.py --GT_class 5 --F_type 3D")
 # os.system("python train.py --GT_class 5 --SHAP avg_abs_min")
 # os.system("python train.py --GT_class 5 --SHAP avg_min")
 
-# os.system("python train.py --GT_class 2 --F_type 3D")
-# os.system("python train.py --GT_class 3 --F_type 3D")
-# os.system("python train.py --GT_class 4 --F_type 3D")
-# os.system("python train.py --GT_class 5 --F_type 3D")
+# os.system("python train.py --GT_class 2 --F_type 2D")
+# os.system("python train.py --GT_class 3 --F_type 2D")
+# os.system("python train.py --GT_class 4 --F_type 2D")
+# os.system("python train.py --GT_class 5 --F_type 2D")
 
