@@ -318,9 +318,6 @@ class Dataset_3D(Dataset):
         return category_ratio
     
     def fetch(self, uds):
-        """
-        处理数据并返回特征和对应的文件路径
-        """
         data_per_ind = []
         
         # 對每一下做處理
@@ -390,11 +387,13 @@ class Dataset_Benchpress(Dataset):
         label_counter = {0: 0, 1: 0}
 
         for _, row in df.iterrows():
+            if row.iloc[61] == 1:
+                continue
             data_1 = row.iloc[0:28].values.astype(float)
-            data_2 = row.iloc[32:50].values.astype(float)
+            data_2 = row.iloc[32:52].values.astype(float)
             data_3 = row.iloc[56:60].values.astype(float)
             data = data_1.tolist() + data_2.tolist() + data_3.tolist()
-            ground_true = row.iloc[61:66].values.astype(int)
+            ground_true = row.iloc[62:66].values.astype(int)
             label = ground_true[GT_class]
             tmp_data.append(data)
             label_counter[label] += 1
@@ -403,9 +402,6 @@ class Dataset_Benchpress(Dataset):
             if counter == 100:
                 block = np.array(tmp_data)
                 path = row.iloc[-1]
-                if path in self.sample_paths:
-                    print(f"Skipping duplicate path: {path}")
-                    continue
                 self.sample_paths.append(path)
                 self.features.append(torch.tensor(block).float())
                 self.labels.append(torch.tensor(label).long())
@@ -434,8 +430,8 @@ class Dataset_Benchpress(Dataset):
         category_ratio = {}
         total = sum(self.count_info)
         if total > 0:
-            category_ratio['0'] = self.count_info[0] / total
-            category_ratio['1'] = self.count_info[1] / total
+            category_ratio[0] = self.count_info[0] / total
+            category_ratio[1] = self.count_info[1] / total
         return category_ratio
 
 class ResnetSubset(torch.utils.data.Dataset):

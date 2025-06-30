@@ -115,10 +115,12 @@ if __name__ == "__main__":
     sport = args.sport
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
 
     if SHAP_mode is None:
         if F_type == '2D':
             if sport == 'deadlift':
+                class_names = {0: '', 1: '', 2: '', 3: ''}
                 data_path = os.path.join(os.getcwd(), 'data', data)
                 full_dataset = Dataset_dd2voz(data_path, GT_class)
                 save_dir = os.path.join(os.getcwd(), 'models', 'deadlift', model_type, str(GT_class))
@@ -126,11 +128,13 @@ if __name__ == "__main__":
                 P_ratio = category_ratio[str(GT_class)]
                 
             if sport == 'benchpress':
+                class_names = {0: 'tilting_to_the_left', 1: 'tilting_to_the_right', 2: 'elbows_flaring', 3: 'scapular_protraction'}
                 data_path = os.path.join(os.getcwd(), 'data', data, 'bench_press_multilabel_cut4.csv')
                 full_dataset = Dataset_Benchpress(data_path, GT_class)
-                save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, str(GT_class))
+                save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, class_names[GT_class])
+                os.makedirs(save_dir, exist_ok=True)
                 category_ratio = full_dataset.get_ratio()
-                P_ratio = category_ratio['1']
+                P_ratio = category_ratio[1]
 
         elif F_type == '3D':
             data_path = os.path.join(os.getcwd(), 'data', '3D_Final')
@@ -204,7 +208,7 @@ if __name__ == "__main__":
         train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path)
 
         avg_loss, f1, acc, avg_time_per_sample, false_positives, false_negatives = test_model_with_path_tracking(
-            model, test_loader, test_dataset, criterion, txt_dir, save_path, full_dataset
+            model, test_loader, criterion, txt_dir, save_path, full_dataset, title=class_names[GT_class]
         )
 
         print(f"Seed {se} Test F1: {f1:.4f}")
