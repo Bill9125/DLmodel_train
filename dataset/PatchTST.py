@@ -195,7 +195,7 @@ class Dataset_TST_Benchpress(Dataset):
                 [data_14] + data_15.tolist() + [data_16] + data_17.tolist() + [data_18]
             )
             
-            label = row.iloc[96] + row.iloc[98] + row.iloc[97] + row.iloc[99:101].values.astype(int)
+            label = [row.iloc[96]] + [row.iloc[98]] + [row.iloc[97]] + row.iloc[99:101].values.astype(int).tolist()
             path = row.iloc[-1]
 
             tmp_data.append(data)
