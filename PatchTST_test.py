@@ -70,12 +70,10 @@ def test_model_with_path_tracking(model, test_loader, criterion, txt_dir, save_p
     f1 = f1_score(y_true, y_pred, average='macro')
 
     # 繪製混淆矩陣
-    binary_classes = ['left-side low', 'right-side low', 'shoulder press', 'shoulder up']
-    classes = ['Correct', 'left-side low', 'right-side low', 'shoulder press', 'shoulder up']
-    # binary_classes = ['wrist press', 'left-side low', 'right-side low', 'shoulder press', 'shoulder up']
-    # classes = ['Correct', 'wrist press', 'left-side low', 'right-side low', 'shoulder press', 'shoulder up']
+    classes = ['Correct', 'wrists bending backward', 'tilting to the right', 'tilting to the left', 'elbows flaring', 'scapular protraction']
     # binary_classes = ['The barbell is moving away from the shins.', 'Hips rise before the barbell leaves the ground.', 'The barbell collides with the knees.', 'Lower back rounding']
     # classes = ['Correct', 'Far from the shins', 'Hips rise first', 'Collide with the knees', 'Lower back rounding']
+    binary_classes = classes[1:]
     
     cm = multilabel_confusion_matrix(y_true, y_pred, sample_weight=None, labels=None, samplewise=False)
     n_classes = cm.shape[0]

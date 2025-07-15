@@ -167,11 +167,35 @@ class Dataset_TST_Benchpress(Dataset):
         tmp_data = []
 
         for _, row in df.iterrows():
-            data_1 = row.iloc[0:35].values.astype(float)
-            data_2 = row.iloc[40:65].values.astype(float)
-            data_3 = row.iloc[70:75].values.astype(float)
-            data = data_1.tolist() + data_2.tolist() + data_3.tolist()
-            label = row.iloc[77:81].values.astype(int)
+            # if row.iloc[96]:
+            #     continue
+            data_1 = row.iloc[0:3].values.astype(float)
+            data_2 = row.iloc[4:8].values.astype(float)
+            data_3 = row.iloc[9:13].values.astype(float)
+            data_4 = row.iloc[14:18].values.astype(float)
+            data_5 = row.iloc[19:23].values.astype(float)
+            data_6 = row.iloc[24:28].values.astype(float)
+            data_7 = row.iloc[29]
+            data_8 = row.iloc[35:38].values.astype(float)
+            data_9 = row.iloc[39]
+            data_10 = row.iloc[50:53].values.astype(float)
+            data_11 = row.iloc[54:58].values.astype(float)
+            data_12 = row.iloc[59:63].values.astype(float)
+            data_13 = row.iloc[64:68].values.astype(float)
+            data_14 = row.iloc[69]
+            data_15 = row.iloc[75:78].values.astype(float)
+            data_16 = row.iloc[79]
+            data_17 = row.iloc[90:93].values.astype(float)
+            data_18 = row.iloc[94]
+
+            data = (
+                data_1.tolist() + data_2.tolist() + data_3.tolist() + data_4.tolist() +
+                data_5.tolist() + data_6.tolist() + [data_7] + data_8.tolist() + [data_9] +
+                data_10.tolist() + data_11.tolist() + data_12.tolist() + data_13.tolist() +
+                [data_14] + data_15.tolist() + [data_16] + data_17.tolist() + [data_18]
+            )
+            
+            label = row.iloc[98] + row.iloc[97] + row.iloc[99:101].values.astype(int)
             path = row.iloc[-1]
 
             tmp_data.append(data)
