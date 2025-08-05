@@ -99,9 +99,9 @@ if __name__ == "__main__":
             
         if sport == 'benchpress':
             class_names = {0: 'tilting_to_the_left', 1: 'tilting_to_the_right', 2: 'elbows_flaring', 3: 'scapular_protraction'}
-            data_path = os.path.join(os.getcwd(), 'data', data, 'bench_press_multilabel_cut4.csv')
+            data_path = os.path.join(os.getcwd(), 'data', data)
             full_dataset = Dataset_Benchpress(data_path, GT_class)
-            save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, class_names[GT_class])
+            save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, 'wrist_press', class_names[GT_class])
             os.makedirs(save_dir, exist_ok=True)
             category_ratio = full_dataset.get_ratio()
             P_ratio = category_ratio[1]
@@ -128,14 +128,14 @@ if __name__ == "__main__":
         set_seed(se)
 
         # 分割資料
-        gen = torch.Generator().manual_seed(se)  # 為每個seed創建獨立生成器
-        train_indices, valid_indices, test_indices = random_split(
-            range(len(full_dataset)), [train_size, valid_size, test_size],
-            generator=gen
-        )
-        train_dataset = ResnetSubset(full_dataset, train_indices, transform=True)
-        valid_dataset = ResnetSubset(full_dataset, valid_indices, transform=False)
-        test_dataset  = ResnetSubset(full_dataset, test_indices, transform=False)
+        # gen = torch.Generator().manual_seed(se)  # 為每個seed創建獨立生成器
+        # train_indices, valid_indices, test_indices = random_split(
+        #     range(len(full_dataset)), [train_size, valid_size, test_size],
+        #     generator=gen
+        # )
+        # train_dataset = ResnetSubset(full_dataset, train_indices, transform=True)
+        # valid_dataset = ResnetSubset(full_dataset, valid_indices, transform=False)
+        test_dataset  = ResnetSubset(full_dataset, [i for i in range(len(full_dataset))], transform=False)
         test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
 
         # 測試

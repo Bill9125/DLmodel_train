@@ -26,12 +26,17 @@ import os
 # os.system("python train.py --GT_class 5 --sport deadlift --data 3D_Real_Final --model Resnet32")
 
 ### ----------------------benchpress----------------------
-os.system("python train.py --GT_class 0 --sport benchpress --data BP_data_new_skeleton")
-os.system("python train.py --GT_class 1 --sport benchpress --data BP_data_new_skeleton")
-os.system("python train.py --GT_class 2 --sport benchpress --data BP_data_new_skeleton")
-os.system("python train.py --GT_class 3 --sport benchpress --data BP_data_new_skeleton")
-# os.system("python train.py --GT_class 4 --sport benchpress --data BP_data_oringinal")
+os.system("python train.py --GT_class 0 --sport benchpress --model Resnet32 --data BP_data_new_skeleton")
+os.system("python train.py --GT_class 1 --sport benchpress --model Resnet32 --data BP_data_new_skeleton")
+os.system("python train.py --GT_class 2 --sport benchpress --model Resnet32 --data BP_data_new_skeleton")
+os.system("python train.py --GT_class 3 --sport benchpress --model Resnet32 --data BP_data_new_skeleton")
+os.system("python train.py --GT_class 4 --sport benchpress --model Resnet32 --data BP_data_new_skeleton")
 
+# os.system("python test.py --GT_class 0 --sport benchpress --model BiLSTM --data subject_test.csv")
+# os.system("python test.py --GT_class 1 --sport benchpress --model BiLSTM --data subject_test.csv")
+# os.system("python test.py --GT_class 2 --sport benchpress --model BiLSTM --data subject_test.csv")
+# os.system("python test.py --GT_class 3 --sport benchpress --model BiLSTM --data subject_test.csv")
+# os.system("python test.py --GT_class 4 --sport benchpress --model BiLSTM --data subject_test.csv")
 # os.system("python test.py --GT_class 0 --sport benchpress --data BPdata --model Resnet32")
 # os.system("python test.py --GT_class 1 --sport benchpress --data BPdata --model Resnet32")
 # os.system("python train.py --GT_class 2 --sport benchpress --data BPdata --model Resnet32")

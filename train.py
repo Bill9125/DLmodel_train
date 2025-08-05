@@ -11,7 +11,7 @@ import argparse
 from models import ResNet32, BiLSTMModel
 from tools import set_seed, f1_score, compute_f1_score, write_results
 from test import test_model_with_path_tracking
-from dataset import *
+
 
 def train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path, num_epochs=100, patience=8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     sport = args.sport
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    from dataset import *
     if SHAP_mode is None:
         if sport == 'deadlift':
             class_names = {2: 'The barbell is moving away from the shins', 3: 'Hips rise before the barbell leaves the ground', 4: 'The barbell collides with the knees', 5: 'Lower back rounding'}
@@ -125,10 +125,10 @@ if __name__ == "__main__":
             P_ratio = category_ratio[str(GT_class)]
             
         if sport == 'benchpress':
-            class_names = {0: 'tilting_to_the_left', 1: 'tilting_to_the_right', 2: 'elbows_flaring', 3: 'scapular_protraction'}
+            class_names = {0: 'wrists_bending_backward', 1: 'tilting_to_the_left', 2: 'tilting_to_the_right', 3: 'elbows_flaring', 4: 'scapular_protraction'}
             data_path = os.path.join(os.getcwd(), 'data', data, 'bench_press_multilabel_cut4.csv')
             full_dataset = Dataset_Benchpress(data_path, GT_class)
-            save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, class_names[GT_class])
+            save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, 'wrist_press', class_names[GT_class])
             os.makedirs(save_dir, exist_ok=True)
             category_ratio = full_dataset.get_ratio()
             P_ratio = category_ratio[1]
