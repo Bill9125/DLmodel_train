@@ -76,39 +76,25 @@ def test_model_with_path_tracking(model, test_loader, criterion, txt_dir, save_p
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--GT_class',type=int)
-    parser.add_argument('--SHAP',type=str, default=None)
     parser.add_argument('--model', type=str, default='Resnet32', choices=['Resnet32', 'BiLSTM'], help='Model type to use for training')
     parser.add_argument('--data',type=str)
-    parser.add_argument('--sport', type=str, default='benchpress', choices=['benchpress', 'deadlift'], help='Sport type for the dataset')
     args = parser.parse_args()
     GT_class = args.GT_class
-    SHAP_mode = args.SHAP
     model_type = args.model
     data = args.data
-    sport = args.sport
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    if SHAP_mode is None:
-        if sport == 'deadlift':
-            data_path = os.path.join(os.getcwd(), 'data', data)
-            full_dataset = Dataset_dd2voz(data_path, GT_class)
-            save_dir = os.path.join(os.getcwd(), 'models', 'deadlift', model_type, str(GT_class))
-            category_ratio = full_dataset.get_ratio()
-            P_ratio = category_ratio[str(GT_class)]
             
-        if sport == 'benchpress':
-            class_names = {0: 'tilting_to_the_left', 1: 'tilting_to_the_right', 2: 'elbows_flaring', 3: 'scapular_protraction'}
-            data_path = os.path.join(os.getcwd(), 'data', data)
-            full_dataset = Dataset_Benchpress(data_path, GT_class)
-            save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, 'wrist_press', class_names[GT_class])
-            os.makedirs(save_dir, exist_ok=True)
-            category_ratio = full_dataset.get_ratio()
-            P_ratio = category_ratio[1]
+    class_names = {0: 'tilting_to_the_left', 1: 'tilting_to_the_right', 2: 'elbows_flaring', 3: 'scapular_protraction'}
+    data_path = os.path.join(os.getcwd(), 'data', data)
+    full_dataset = Dataset_Benchpress(data_path, GT_class)
+    save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, 'wrist_press', class_names[GT_class])
+    os.makedirs(save_dir, exist_ok=True)
+    category_ratio = full_dataset.get_ratio()
+    P_ratio = category_ratio[1]
 
-        input_dim = full_dataset.dim
-        print('input_dim',input_dim)
-    
+    input_dim = full_dataset.dim
+    print('input_dim',input_dim)
     print(f'Category : {category_ratio}')
     train_size = int(0.75 * len(full_dataset))
     valid_size = int(0.15 * len(full_dataset))
