@@ -11,6 +11,8 @@ import argparse
 from models import ResNet32, BiLSTMModel
 from tools import set_seed, f1_score, compute_f1_score, write_results
 from test import test_model_with_path_tracking
+from dataset import *
+import json, random
 
 
 def train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path, num_epochs=100, patience=8):
@@ -106,25 +108,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
     GT_class = args.GT_class
     model_type = args.model
-    data = args.data
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    from dataset import *
+    data_file = args.data
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     class_names = {0: 'tilting_to_the_left', 1: 'tilting_to_the_right', 2: 'elbows_flaring', 3: 'scapular_protraction'}
-    data_path = os.path.join(os.getcwd(), 'data', data, 'bench_press_multilabel_cut4.csv')
-    full_dataset = Dataset_Benchpress(data_path, GT_class)
-    save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data, 'no_wrist_press', class_names[GT_class])
+    
+    data_path = os.path.join(os.getcwd(), 'data', data_file, 'data.json')
+    save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data_file, 'test_random_20', class_names[GT_class])
     os.makedirs(save_dir, exist_ok=True)
-    category_ratio = full_dataset.get_ratio()
-    P_ratio = category_ratio[1]
-    input_dim = full_dataset.dim
-    print('input_dim',input_dim)
-    print(f'Category : {category_ratio}')
-    
-    train_size = int(0.75 * len(full_dataset))
-    valid_size = int(0.15 * len(full_dataset))
-    test_size = len(full_dataset) - train_size - valid_size
-    
+    print(f'read {data_path} as dataset ...')
+    with open(data_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        
     best_f1 = -1
     best_seed = None
     best_model_path = ""
@@ -136,18 +130,36 @@ if __name__ == "__main__":
 
     for se in seeds:
         set_seed(se)
-
+        
+        random_keys = random.sample(list(map(int, data.keys())), 20)
+        test_data = {str(k): data[str(k)] for k in random_keys}
+        train_data = {str(k): data[str(k)] for k in data if int(k) not in random_keys}
+        
+        full_train_dataset = Dataset_Benchpress(train_data, GT_class)
+        test_dataset = Dataset_Benchpress(test_data, GT_class)
+        
+        category_ratio = full_train_dataset.get_ratio()
+        P_ratio = category_ratio[1]
+        input_dim = full_train_dataset.dim
+        print('input_dim',input_dim)
+        print(f'Category : {category_ratio}')
+        
+        train_size = int(0.85 * len(full_train_dataset))
+        valid_size = int(len(full_train_dataset)) - train_size
+        test_size = int(len(test_dataset))
+        print(f'total training size : {len(full_train_dataset)}')
+        print(f'train_size : {train_size}, valid_size : {valid_size}, test_size : {test_size}')
+        
         # 分割資料
         gen = torch.Generator().manual_seed(se)  # 為每個seed創建獨立生成器
-        train_indices, valid_indices, test_indices = random_split(
-            range(len(full_dataset)), [train_size, valid_size, test_size],
+        train_indices, valid_indices = random_split(
+            range(len(full_train_dataset)), [train_size, valid_size],
             generator=gen
         )
-        train_dataset = ResnetSubset(full_dataset, train_indices, transform=True)
-        valid_dataset = ResnetSubset(full_dataset, valid_indices, transform=False)
-        test_dataset  = ResnetSubset(full_dataset, test_indices, transform=False)
+        train_dataset = ResnetSubset(full_train_dataset, train_indices, transform=True)
+        valid_dataset = ResnetSubset(full_train_dataset, valid_indices, transform=False)
         
-        train_labels = [full_dataset.labels[i] for i in train_dataset.indices]
+        train_labels = [full_train_dataset.labels[i] for i in train_dataset.indices]
 
         # 建立 Weighted Sampler
         class_weights = [1.0 / sum(np.array(train_labels) == i) for i in range(2)]
@@ -177,8 +189,8 @@ if __name__ == "__main__":
 
         train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path)
 
-        avg_loss, f1, acc, avg_time_per_sample, false_positives, false_negatives = test_model_with_path_tracking(
-            model, test_loader, criterion, txt_dir, save_path, full_dataset, title=class_names[GT_class]
+        avg_loss, f1, acc, avg_time_per_sample = test_model_with_path_tracking(
+            model, test_loader, criterion, txt_dir, save_path, title=class_names[GT_class]
         )
 
         print(f"Seed {se} Test F1: {f1:.4f}")
