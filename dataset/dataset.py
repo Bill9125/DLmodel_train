@@ -3,23 +3,18 @@ import torch
 import random
 
 class Dataset_Benchpress(Dataset):
-    def __init__(self, all_data, GT_class):
+    def __init__(self, all_data):
         self.features = []
         self.labels = []
-        self.count_info = []  # [negative_count, positive_count]
-        label_counter = {0: 0, 1: 0}
         for subject, data in all_data.items():
             for label, features in data.items():
                 ground_truth = list(map(int, label.split("_")))
-                label = ground_truth[GT_class]
                 for feature in features.values():
                     self.features.append(torch.tensor(feature).float())
-                    self.labels.append(torch.tensor(label).long())
-                    label_counter[label]+=1
+                    self.labels.append(torch.tensor(ground_truth).float())
         self.features = torch.stack(self.features)
         self.labels = torch.stack(self.labels)
         self.dim = self.features.shape[-1]
-        self.count_info = [label_counter[0], label_counter[1]]
 
     def __len__(self):
         return len(self.features)
@@ -28,16 +23,8 @@ class Dataset_Benchpress(Dataset):
         x = self.features[idx]
         y = self.labels[idx]
         return x, y, idx
-    
-    def get_ratio(self):
-        category_ratio = {}
-        total = sum(self.count_info)
-        if total > 0:
-            category_ratio[0] = self.count_info[0] / total
-            category_ratio[1] = self.count_info[1] / total
-        return category_ratio
 
-class ResnetSubset(torch.utils.data.Dataset):
+class Datasubset(torch.utils.data.Dataset):
     def __init__(self, dataset, indices, transform=False):
         self.dataset = dataset
         self.indices = indices
@@ -73,3 +60,5 @@ class ResnetSubset(torch.utils.data.Dataset):
     def add_gaussian_noise(self, x, std=0.01):
         noise = torch.randn_like(x) * std
         return x + noise
+    
+    

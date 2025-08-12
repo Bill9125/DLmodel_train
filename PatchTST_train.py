@@ -1,5 +1,5 @@
 import torch
-import os
+import os, json
 import torch.optim as optim
 import numpy as np
 from torch.utils.data import DataLoader, random_split
@@ -86,27 +86,37 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     parser = argparse.ArgumentParser()
     parser.add_argument('--sport', type=str)
+    parser.add_argument('--split_training', type=bool)
     args = parser.parse_args()
     
-    from dataset.PatchTST import *
+    from dataset import *
     if args.sport == 'deadlift':
-        dataset = os.path.join(os.getcwd(), 'data', '3D_Real_Final')
-        full_dataset = Dataset_TST_Deadlift(dataset)
+        data_path = os.path.join(os.getcwd(), 'data', '3D_Real_Final')
+        full_dataset = Dataset_TST_Deadlift(data_path)
         save_dir = f'./models/TST_Deadlift/12'
         num_classes = 4
         input_len = 110
     elif args.sport == 'benchpress':
-        dataset = os.path.join(os.getcwd(), 'data', 'BP_data_new_skeleton', 'bench_press_multilabel_cut4.csv')
-        full_dataset = Dataset_TST_Benchpress(dataset)
-        save_dir = './models/benchpress/TST_Benchpress/9/wrist_press'
+        data_path = os.path.join(os.getcwd(), 'data', 'BP_data_new_skeleton', 'data.json')
+        with open(data_path, 'r', encoding='utf-8') as f:
+            all_data = json.load(f)
+            
+        if args.split_training:
+            random_keys = random.sample(list(map(int, all_data.keys())), 20)
+            test_data = {str(k): all_data[str(k)] for k in random_keys}
+            train_data = {str(k): all_data[str(k)] for k in all_data if int(k) not in random_keys}
+            test_dataset  = Dataset_Benchpress(test_data)
+        
+        full_dataset = Dataset_Benchpress(train_data)
+        save_dir = './models/benchpress/TST_Benchpress/Exp2/no_wrist_press'
         num_classes = 4
         input_len = 100
     input_dim = full_dataset.dim
     print('Input dimention',input_dim)
     
-    train_size = int(0.75 * len(full_dataset))
-    valid_size = int(0.15 * len(full_dataset))
-    test_size = len(full_dataset) - train_size - valid_size
+    train_size = int(0.85 * len(full_dataset))
+    valid_size = int(len(full_dataset)) - train_size
+    test_size = int(len(test_dataset))
     
     best_f1 = -1
     best_seed = None
@@ -122,18 +132,17 @@ if __name__ == "__main__":
 
         # 分割資料
         gen = torch.Generator().manual_seed(se)  # 為每個seed創建獨立生成器
-        train_indices, valid_indices, test_indices = random_split(
-            range(len(full_dataset)), [train_size, valid_size, test_size],
+        train_indices, valid_indices = random_split(
+            range(len(full_dataset)), [train_size, valid_size],
             generator=gen
         )
         
-        train_dataset = TransformSubset(full_dataset, train_indices, transform=True)
-        valid_dataset = TransformSubset(full_dataset, valid_indices, transform=False)
-        test_dataset  = TransformSubset(full_dataset, test_indices, transform=False)
+        train_dataset = Datasubset(full_dataset, train_indices, transform=True)
+        valid_dataset = Datasubset(full_dataset, valid_indices, transform=False)
 
-        train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-        valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False)
-        test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False)
+        test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
 
         # 訓練與測試
         model = PatchTSTClassifier(input_dim, num_classes, input_len).to(device)
@@ -149,7 +158,7 @@ if __name__ == "__main__":
         train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path)
 
         avg_loss, f1, avg_time_per_sample, accuracy = test_model_with_path_tracking(
-            model, test_loader, criterion, txt_dir, save_path, full_dataset, num_classes
+            model, test_loader, criterion, txt_dir, save_path, num_classes
         )
         print(f"Seed {se} Test F1: {f1:.4f}, Accuracy: {accuracy:.4f}, cost {avg_time_per_sample} sec")
         all_f1_scores.append(f1)
