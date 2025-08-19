@@ -76,19 +76,19 @@ def test_model_with_path_tracking(model, test_loader, criterion, txt_dir, save_p
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--GT_class',type=int)
-    parser.add_argument('--model', type=str, default='Resnet32', choices=['Resnet32', 'BiLSTM'], help='Model type to use for training')
+    parser.add_argument('--model', type=str, default='ResNet32', choices=['ResNet32', 'BiLSTM'], help='Model type to use for training')
     parser.add_argument('--data',type=str)
     args = parser.parse_args()
     GT_class = args.GT_class
-    SHAP_mode = args.SHAP
     model_type = args.model
     data = args.data
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     data_path = os.path.join(os.getcwd(), 'data', data)
+    class_names = {2: 'The barbell is moving away from the shins', 3: 'Hips rise before the barbell leaves the ground', 4: 'The barbell collides with the knees', 5: 'Lower back rounding'}
     full_dataset = Dataset_dd2voz(data_path, GT_class)
-    save_dir = os.path.join(os.getcwd(), 'models', 'deadlift', model_type, str(GT_class))
+    save_dir = os.path.join(os.getcwd(), 'models', 'deadlift', f'{data}_{model_type}', str(GT_class))
     category_ratio = full_dataset.get_ratio()
     P_ratio = category_ratio[str(GT_class)]
     input_dim = full_dataset.dim
@@ -113,20 +113,18 @@ if __name__ == "__main__":
         set_seed(se)
 
         # 分割資料
-        # gen = torch.Generator().manual_seed(se)  # 為每個seed創建獨立生成器
-        # train_indices, valid_indices, test_indices = random_split(
-        #     range(len(full_dataset)), [train_size, valid_size, test_size],
-        #     generator=gen
-        # )
-        # train_dataset = ResnetSubset(full_dataset, train_indices, transform=True)
-        # valid_dataset = ResnetSubset(full_dataset, valid_indices, transform=False)
-        test_dataset  = ResnetSubset(full_dataset, [i for i in range(len(full_dataset))], transform=False)
+        gen = torch.Generator().manual_seed(se)  # 為每個seed創建獨立生成器
+        train_indices, valid_indices, test_indices = random_split(
+            range(len(full_dataset)), [train_size, valid_size, test_size],
+            generator=gen
+        )
+        test_dataset  = ResnetSubset(full_dataset, test_indices, transform=False)
         test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
 
         # 測試
         if model_type == 'BiLSTM':
             model = BiLSTMModel(input_dim).to(device)
-        elif model_type == 'Resnet32':
+        elif model_type == 'ResNet32':
             model = ResNet32(input_dim).to(device)
         class_counts = torch.tensor([P_ratio, 1 - P_ratio])
         criterion = CrossEntropyLoss(weight=(1.0 / class_counts).to(device))
