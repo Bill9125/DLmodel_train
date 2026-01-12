@@ -132,6 +132,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_path', type=str, default=os.path.join(os.getcwd(), 'data', 'benchpress'))
     parser.add_argument('--six_fold', action='store_true', help='Use 6-fold cross validation')
     parser.add_argument('--wrist', action='store_true', help='Use wrist data')
+    parser.add_argument('--augmentation', type=str, help='What you use in data augmentation ?')
     args = parser.parse_args()
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
@@ -142,7 +143,7 @@ if __name__ == "__main__":
     
     data_path = os.path.join(args.data_path, 'wrist', 'data.json') if args.wrist else os.path.join(args.data_path, 'no_wrist', 'data.json')
     exp_name = f'{"six_fold" if args.six_fold else "random_subject"}_{"wrist" if args.wrist else "no_wrist"}'
-    save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', args.model, 'test', exp_name, class_names[args.GT_class])
+    save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', args.model, args.augmentation, exp_name, class_names[args.GT_class])
     os.makedirs(save_dir, exist_ok=True)
     print(f'read {data_path} as dataset ...')
     with open(data_path, 'r', encoding='utf-8') as f:
@@ -222,7 +223,7 @@ if __name__ == "__main__":
         train_indices = all_indices[:train_size]
         valid_indices = all_indices[train_size:]
         
-        train_dataset = ResnetSubset(train_valid_dataset, train_indices, transform=True)
+        train_dataset = ResnetSubset(train_valid_dataset, train_indices, transform=args.augmentation)
         valid_dataset = ResnetSubset(train_valid_dataset, valid_indices, transform=False)
         test_dataset = ResnetSubset(test_dataset, list(range(test_size)), transform=False)
         
