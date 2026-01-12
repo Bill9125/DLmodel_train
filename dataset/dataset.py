@@ -10,7 +10,7 @@ class Dataset_Benchpress(Dataset):
         label_counter = {0: 0, 1: 0}
         for subject, data in all_data.items():
             for label, features in data.items():
-                ground_truth = list(map(int, label.split("_")))
+                ground_truth = list(map(int, label.split("_"))) # [0, 1, 0, 1, 0]
                 label = ground_truth[GT_class]
                 for feature in features.values():
                     self.features.append(torch.tensor(feature).float())

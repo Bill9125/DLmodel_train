@@ -129,16 +129,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--GT_class',type=int)
     parser.add_argument('--model', type=str, default='BiLSTM', choices=['Resnet32', 'BiLSTM'], help='Model type to use for training')
-    parser.add_argument('--data',type=str)
+    parser.add_argument('--data_path', type=str, default=os.path.join(os.getcwd(), 'data', 'benchpress'))
+    parser.add_argument('--six_fold', action='store_true', help='Use 6-fold cross validation')
+    parser.add_argument('--wrist', action='store_true', help='Use wrist data')
     args = parser.parse_args()
-    GT_class = args.GT_class
-    model_type = args.model
-    data_file = args.data
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    class_names = {0: 'wrists_bending_backward', 1: 'tilting_to_the_left', 2: 'tilting_to_the_right', 3: 'elbows_flaring', 4: 'scapular_protraction'}
     
-    data_path = os.path.join(os.getcwd(), 'data', data_file, 'data_wrist.json')
-    save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', model_type, data_file, 'test_random_seed_wrist', class_names[GT_class])
+    if args.wrist:
+        class_names = {0: 'wrists_bending_backward', 1: 'tilting_to_the_left', 2: 'tilting_to_the_right', 3: 'elbows_flaring', 4: 'scapular_protraction'}
+    else:
+        class_names = {0: 'tilting_to_the_left', 1: 'tilting_to_the_right', 2: 'elbows_flaring', 3: 'scapular_protraction'}
+    
+    data_path = os.path.join(args.data_path, 'wrist', 'data.json') if args.wrist else os.path.join(args.data_path, 'no_wrist', 'data.json')
+    exp_name = f'{"six_fold" if args.six_fold else "random_subject"}_{"wrist" if args.wrist else "no_wrist"}'
+    save_dir = os.path.join(os.getcwd(), 'models', 'benchpress', args.model, 'test', exp_name, class_names[args.GT_class])
     os.makedirs(save_dir, exist_ok=True)
     print(f'read {data_path} as dataset ...')
     with open(data_path, 'r', encoding='utf-8') as f:
@@ -151,48 +155,56 @@ if __name__ == "__main__":
     all_f1_scores = []
     all_avg_times = []
     all_acc = []
-    # 打亂所有 keys
     all_keys = list(map(str, data.keys()))
-    # random.shuffle(all_keys)
 
-    # # 切成六份
-    # num_folds = 6
-    # fold_size = len(all_keys) // num_folds
-    # folds = [all_keys[i*fold_size:(i+1)*fold_size] for i in range(num_folds)]
-
-    # # 如果不能整除，把剩下的分配到前幾份
-    # remainder = len(all_keys) % num_folds
-    # for i in range(remainder):
-    #     folds[i].append(all_keys[num_folds*fold_size + i])
-    
-    # # 生成六組 train/test
-    # datasets = []
-    # for i in range(num_folds):
-    #     test_keys = folds[i]
-    #     train_keys = [k for j, f in enumerate(folds) if j != i for k in f]
-
-    #     test_data = {str(k): data[str(k)] for k in test_keys}
-    #     train_data = {str(k): data[str(k)] for k in train_keys}
-    #     datasets.append((train_data, test_data))
-
-    n_total = len(all_keys)
-    split_idx = int(n_total * 0.9)
-    seeds = [42, 2023, 7, 88, 100, 999]
     datasets = []
-    for se in seeds:
-        set_seed(se)
-        perm = torch.randperm(n_total).tolist() 
-        shuffled_keys = [all_keys[i] for i in perm]
-        train_keys = shuffled_keys[:split_idx]
-        test_keys = shuffled_keys[split_idx:]
+    run_labels = []
 
-        test_data = {str(k): data[str(k)] for k in test_keys}
-        train_data = {str(k): data[str(k)] for k in train_keys}
-        datasets.append((train_data, test_data))
+    # 切成六份
+    if args.six_fold:
+        # 建議先打亂 keys 確保 fold 的隨機性
+        random.seed(42) 
+        random.shuffle(all_keys)
+        
+        num_folds = 6
+        run_labels = [f"Fold {i}" for i in range(num_folds)]
+        fold_size = len(all_keys) // num_folds
+        folds = [all_keys[i*fold_size:(i+1)*fold_size] for i in range(num_folds)]
+
+        # 如果不能整除，把剩下的分配到前幾份
+        remainder = len(all_keys) % num_folds
+        for i in range(remainder):
+            folds[i].append(all_keys[num_folds*fold_size + i])
+        
+        # 生成六組 train/test
+        for i in range(num_folds):
+            test_keys = folds[i]
+            train_keys = [k for j, f in enumerate(folds) if j != i for k in f]
+
+            test_data = {k: data[k] for k in test_keys}
+            train_data = {k: data[k] for k in train_keys}
+            datasets.append((train_data, test_data))
+        
+    # 不分受試者
+    else:
+        n_total = len(all_keys)
+        split_idx = int(n_total * 0.9)
+        seeds = [42, 2023, 7, 88, 100, 999]
+        run_labels = seeds
+        for se in seeds:
+            set_seed(se)
+            perm = torch.randperm(n_total).tolist() 
+            shuffled_keys = [all_keys[i] for i in perm]
+            train_keys = shuffled_keys[:split_idx]
+            test_keys = shuffled_keys[split_idx:]
+
+            test_data = {k: data[k] for k in test_keys}
+            train_data = {k: data[k] for k in train_keys}
+            datasets.append((train_data, test_data))
         
     for i, (train_data, test_data) in enumerate(datasets):
-        train_valid_dataset = Dataset_Benchpress(train_data, GT_class)
-        test_dataset = Dataset_Benchpress(test_data, GT_class)
+        train_valid_dataset = Dataset_Benchpress(train_data, args.GT_class)
+        test_dataset = Dataset_Benchpress(test_data, args.GT_class)
         all_indices = list(range(len(train_valid_dataset)))
         random.shuffle(all_indices)
         
@@ -228,9 +240,9 @@ if __name__ == "__main__":
         test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 
         # 訓練與測試
-        if model_type == 'BiLSTM':
+        if args.model == 'BiLSTM':
             model = BiLSTMModel(input_dim).to(device)
-        elif model_type == 'Resnet32':
+        elif args.model == 'Resnet32':
             model = ResNet32(input_dim).to(device)
         class_counts = torch.tensor([P_ratio, 1 - P_ratio])
         criterion = CrossEntropyLoss(weight=(1.0 / class_counts).to(device))
@@ -242,15 +254,15 @@ if __name__ == "__main__":
             min_lr_ratio=0.01,
         )
 
-        save_path = os.path.join(save_dir, f"{model_type}_model_seed{i}.pth")
-        txt_dir = os.path.join(save_dir, f"{model_type}_train_results_seed{i}_results")
-        fig_path = os.path.join(txt_dir, f"{model_type}_train_results_seed{i}.png")
+        save_path = os.path.join(save_dir, f"{args.model}_model_seed{i}.pth")
+        txt_dir = os.path.join(save_dir, f"{args.model}_train_results_seed{i}_results")
+        fig_path = os.path.join(txt_dir, f"{args.model}_train_results_seed{i}.png")
         os.makedirs(txt_dir, exist_ok=True)
 
         train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, save_path, fig_path)
 
         avg_loss, f1, acc, avg_time_per_sample = test_model_with_path_tracking(
-            model, test_loader, criterion, txt_dir, save_path, title=class_names[GT_class]
+            model, test_loader, criterion, txt_dir, save_path, title=class_names[args.GT_class]
         )
 
         print(f"Seed {i} Test F1: {f1:.4f}")
@@ -263,5 +275,4 @@ if __name__ == "__main__":
             best_seed = i
             best_model_path = save_path
 
-    # write_results(model, input_dim, category_ratio, num_folds, all_f1_scores, all_avg_times, all_acc, best_f1, best_seed, best_model_path, save_dir)
-    write_results(model, input_dim, category_ratio, seeds, all_f1_scores, all_avg_times, all_acc, best_f1, best_seed, best_model_path, save_dir)
+    write_results(model, input_dim, category_ratio, run_labels, all_f1_scores, all_avg_times, all_acc, best_f1, best_seed, best_model_path, save_dir)

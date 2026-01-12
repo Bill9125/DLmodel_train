@@ -107,16 +107,16 @@ def plot_custom_confusion_matrix(cm, class_names, save_path, f1):
     plt.close()
     
 
-def write_results(model, input_dim, category_ratio, num_folds, all_f1_scores, all_sample_times, all_acc, best_f1, best_seed, best_model_path, save_dir):
+def write_results(model, input_dim, category_ratio, run_labels, all_f1_scores, all_sample_times, all_acc, best_f1, best_seed, best_model_path, save_dir):
     # 🔍 顯示結果 & 建立結果字串
     summary_lines = []
-    summary_lines.append("\n✅ F1 scores from each fold:")
+    summary_lines.append("\n✅ Results from each run:")
     
-    for fold, f1, st, ac in zip(list(num_folds), all_f1_scores, all_sample_times, all_acc):
-        summary_lines.append(f"Seed {fold}: F1 = {f1:.4f}, Average Time per Sample = {st:.6f} seconds, Accuracy = {ac:.4f}")
+    for label, f1, st, ac in zip(run_labels, all_f1_scores, all_sample_times, all_acc):
+        summary_lines.append(f"Run [{label}]: F1 = {f1:.4f}, Average Time per Sample = {st:.6f} seconds, Accuracy = {ac:.4f}")
 
     summary_lines.append(f"\n📊 Average F1 Score: {np.mean(all_f1_scores):.4f} ± {np.std(all_f1_scores):.4f}")
-    summary_lines.append(f"🏆 Best F1: {best_f1:.4f} from Seed {best_seed}")
+    summary_lines.append(f"🏆 Best F1: {best_f1:.4f} from Run Index {best_seed}")
     summary_lines.append(f"📁 Best model saved at: {best_model_path}")
 
     # 印出結果到 terminal
