@@ -28,10 +28,9 @@ def reorganize(row, idx, del_col):
             else:
                 data.append(row.iloc[s])
     else:
-        data = row.iloc[0:idx].values.astype(float).tolist()
+        data = row.iloc[1:idx].values.astype(float).tolist()
     label = row.iloc[idx_label['wrists_bending_backward']:idx_label['scapular_protraction']+1].astype(int).tolist()
     no_wrist_label = row.iloc[idx_label['tilting_to_the_left']:idx_label['scapular_protraction']+1].astype(int).tolist()
-    
     return data, label, no_wrist_label
 
 def label2str(ground_truth):
@@ -50,22 +49,20 @@ def csv2json(dataset_root, split_index, del_col):
     subjects_data_no_wrist = defaultdict(lambda: defaultdict(dict))
 
     for _, row in df.iterrows():
-        # 拿掉壓手腕資料
-        if row.iloc[split_index+1] == 1:
-            continue
         data, label, no_wrist_label = reorganize(row, split_index+1, del_col)
         tmp_data.append(data)
 
         counter += 1
         if counter == 100:
+            tmp_data = []
+            counter = 0
             path = row.iloc[-2]
             number = row.iloc[-1]
             gt_key = label2str(label)
-            no_wrist_gt_key = label2str(no_wrist_label)
             subjects_data[path][gt_key][number] = tmp_data
-            subjects_data_no_wrist[path][no_wrist_gt_key][number] = tmp_data
-            tmp_data = []
-            counter = 0
+            if row.iloc[split_index+2] != 1: # 沒壓手腕
+                no_wrist_gt_key = label2str(no_wrist_label)
+                subjects_data_no_wrist[path][no_wrist_gt_key][number] = tmp_data
     return subjects_data, subjects_data_no_wrist
 
 def save_json(data, dir):
