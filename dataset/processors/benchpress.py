@@ -44,6 +44,8 @@ def generate_csv(dataset_dir, output_csv):
         return
         
     for label_dir in os.listdir(dataset_dir):
+        if label_dir == "wrist_bending_backward":
+            continue
         full_label_dir = os.path.join(dataset_dir, label_dir)
         if not os.path.isdir(full_label_dir):
             continue
