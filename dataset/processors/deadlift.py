@@ -22,6 +22,14 @@ def pre_process(video_path: str):
     res = run_step("Data Split", run_data_split, [video_path])
     return memo, res
 
+# deadliftdim=8
+# bar x, y
+# knee, hip, torso-arm
+
+# benchpress dim=12
+# bar x, y
+# shoulder(y, angle), torso-arm, elbow, distance(wrist to shoulder line)
+
 def apply_augmentation(df):
     """
     Placeholder for data augmentation (e.g., jittering, scaling, time-warping).
@@ -120,7 +128,7 @@ def generate_csv(dataset_dir, output_csv):
                                 # 2. Start extracting and merging features
                                 df_3d = pd.read_csv(file_path, header=None)
                                 
-                                # Drop body length (col 5). Keep joints: 1, 2, 3, 4, 6, 7
+                                # Drop body length (col 5). Keep joints: 1: left knee angle, 2: left hip angle, 3: right knee angle, 4: right hip angle, 6: left arm-torso angle, 7: right arm-torso angle
                                 # Note: index 0 is frame, so we skip it.
                                 df_3d_filtered = df_3d.iloc[:, [1, 2, 3, 4, 6, 7]]
                                 

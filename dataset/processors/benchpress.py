@@ -23,6 +23,14 @@ def pre_process(video_path: str):
     split_info = run_step("Autocutting", run_autocutting, [video_path], {"bar_dict": bar_dict, "rear_ske_dict": rear_ske_dict})
     return memo
 
+# deadliftdim=8
+# bar x,y
+# knee, hip, torso-arm
+
+# benchpress dim=12
+# bar x,y
+# shoulder(y, angle), torso-arm, elbow, distance(wrist to shoulder line)
+
 def apply_augmentation(df):
     """
     Placeholder for data augmentation (e.g., jittering, scaling, time-warping).

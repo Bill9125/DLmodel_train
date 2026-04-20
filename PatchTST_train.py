@@ -1,3 +1,4 @@
+from random import choice
 import torch
 import os, json
 import torch.optim as optim
@@ -109,10 +110,10 @@ def get_warmup_cosine_scheduler(
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sport', type=str)
+    parser.add_argument('--sport', type=str, choices=['benchpress', 'deadlift'])
     parser.add_argument('--subject_split', type=bool, help='Whether to split the dataset by subject')
     parser.add_argument('--num_workers', type=int, default=4, help='Number of subset workers for DataLoader')
-    parser.add_argument('--tag', type=str, help='Tag for save_dir, default is your data argumentation')
+    parser.add_argument('--tag', type=str, help='Tag for save_dir, default is your data argumentation') # spawner, ...
     args = parser.parse_args()
     seeds = [42, 2023, 7, 88, 100, 999]
     
@@ -137,10 +138,10 @@ if __name__ == "__main__":
         unique_subjects = sorted(list(set(full_dataset.subjects)))
         random.shuffle(unique_subjects)
 
-        # 7:2:1 split for subjects
+        # 7:1:2 split for subjects
         n_subs = len(unique_subjects)
         tr_end = int(0.7 * n_subs)
-        vl_end = int(0.9 * n_subs)
+        vl_end = int(0.8 * n_subs)
         
         train_subs = set(unique_subjects[:tr_end])
         val_subs = set(unique_subjects[tr_end:vl_end])
@@ -162,7 +163,7 @@ if __name__ == "__main__":
             
             n_total = len(all_indices)
             tr_end = int(0.7 * n_total)
-            vl_end = int(0.9 * n_total)
+            vl_end = int(0.8 * n_total)
             
             train_idx = all_indices[:tr_end]
             val_idx = all_indices[tr_end:vl_end]
