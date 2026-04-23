@@ -1,7 +1,12 @@
-from ..tools.interpolate import run_interpolation
-from ..tools.Benchpress_tool.hampel import run_hampel_bar, run_hampel_yolo_ske_left_front
-from ..tools.Deadlift_tool.data_produce import run_data_produce
-from ..tools.Deadlift_tool.data_split import run_data_split
+import os
+import sys
+# Add project root to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from dataset.tools.interpolate import run_interpolation
+from dataset.tools.Benchpress_tool.hampel import run_hampel_bar, run_hampel_yolo_ske_left_front
+from dataset.tools.Deadlift_tool.data_produce import run_data_produce
+from dataset.tools.Deadlift_tool.data_split import run_data_split
 
 def pre_process(video_path: str):
     # Run the standard pipeline

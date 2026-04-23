@@ -138,8 +138,11 @@ import json
 
 # --- Main Preprocessing & Prediction Pipeline ---
 
-def extract_raw_features(video_path, bar_dict, rear_ske_dict, top_ske_dict):
-    """Compiles the 13 raw features for every common frame."""
+def extract_raw_features(video_path, bar_dict, rear_ske_dict, top_ske_dict, angle_dicts=None):
+    """
+    Extracts time-series features from raw coordinates.
+    Returns a DataFrame with calculated metrics for each frame.
+    """
     features = []
     # Intersection of all frames
     frames = sorted(set(bar_dict.keys()) & set(rear_ske_dict.keys()) & set(top_ske_dict.keys()))
@@ -164,13 +167,19 @@ def extract_raw_features(video_path, bar_dict, rear_ske_dict, top_ske_dict):
             rl_elb, rr_elb = rear_d[4:6], rear_d[6:8]
             rl_wri, rr_wri = rear_d[8:10], rear_d[10:12]
 
-            l_elb_angle = get_angle(rl_wri, rl_elb, rl_sho)
-            r_elb_angle = get_angle(rr_wri, rr_elb, rr_sho)
-            l_sho_y, r_sho_y = rl_sho[1], rr_sho[1]
+            if angle_dicts:
+                l_elb_angle = angle_dicts.get("left_elbow", {}).get(f, np.nan)
+                r_elb_angle = angle_dicts.get("right_elbow", {}).get(f, np.nan)
+                l_sho_angle = angle_dicts.get("left_shoulder", {}).get(f, np.nan)
+                r_sho_angle = angle_dicts.get("right_shoulder", {}).get(f, np.nan)
+            else:
+                l_elb_angle = get_angle(rl_wri, rl_elb, rl_sho)
+                r_elb_angle = get_angle(rr_wri, rr_elb, rr_sho)
+                # Shoulder angle: Angle between (L_SHO->R_SHO) and (L_SHO->L_ELB)
+                l_sho_angle = angle_line_to_line(rl_sho, rr_sho, rl_sho, rl_elb)
+                r_sho_angle = angle_line_to_line(rr_sho, rl_sho, rr_sho, rr_elb)
             
-            # Shoulder angle: Angle between (L_SHO->R_SHO) and (L_SHO->L_ELB)
-            l_sho_angle = angle_line_to_line(rl_sho, rr_sho, rl_sho, rl_elb)
-            r_sho_angle = angle_line_to_line(rr_sho, rl_sho, rr_sho, rr_elb)
+            l_sho_y, r_sho_y = rl_sho[1], rr_sho[1]
 
             # 3. Top Features
             tl_sho, tr_sho = top_d[0:2], top_d[2:4]
@@ -178,9 +187,12 @@ def extract_raw_features(video_path, bar_dict, rear_ske_dict, top_ske_dict):
             tl_elb, tr_elb = top_d[8:10], top_d[10:12]
             tl_wri, tr_wri = top_d[12:14], top_d[14:16]
 
-            # Torso-arm angle
-            l_torso_arm = get_angle(tl_hip, tl_sho, tl_elb)
-            r_torso_arm = get_angle(tr_hip, tr_sho, tr_elb)
+            if angle_dicts:
+                l_torso_arm = angle_dicts.get("left_torso-arm", {}).get(f, np.nan)
+                r_torso_arm = angle_dicts.get("right_torso-arm", {}).get(f, np.nan)
+            else:
+                l_torso_arm = get_angle(tl_hip, tl_sho, tl_elb)
+                r_torso_arm = get_angle(tr_hip, tr_sho, tr_elb)
             
             # Wrist distance to extended shoulder line
             l_dist = distance_point_to_line(tl_wri, tl_sho, tr_sho)

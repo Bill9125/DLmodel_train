@@ -1,7 +1,12 @@
-from ..tools.interpolate import run_interpolation
-from ..tools.Benchpress_tool.hampel import run_hampel_bar, run_hampel_yolo_ske_rear, run_hampel_yolo_ske_top
-from ..tools.Benchpress_tool.torso_angle_produce import run_torso_angle_produce
-from ..tools.Benchpress_tool.autocutting import run_autocutting
+import os
+import sys
+# Add project root to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from dataset.tools.interpolate import run_interpolation
+from dataset.tools.Benchpress_tool.hampel import run_hampel_bar, run_hampel_yolo_ske_rear, run_hampel_yolo_ske_top
+from dataset.tools.Benchpress_tool.torso_angle_produce import run_torso_angle_produce
+from dataset.tools.Benchpress_tool.autocutting import run_autocutting
 
 
 def pre_process(video_path: str):
@@ -64,6 +69,7 @@ def generate_csv(dataset_dir, output_csv):
                 continue
                 
             coordinate_base = os.path.join(subject_path, "coordinate_dataset")
+            angle_base = os.path.join(subject_path, "angle_dataset")
             if not os.path.exists(coordinate_base):
                 continue
                 
@@ -76,7 +82,6 @@ def generate_csv(dataset_dir, output_csv):
                 
             for file in os.listdir(lat_dir):
                 if file.endswith(".txt"):
-                    print(f"Processing sequence {file} in {subject_path}")
                     try:
                         lat_path = os.path.join(lat_dir, file)
                         rear_path = os.path.join(rear_dir, file)
@@ -85,17 +90,41 @@ def generate_csv(dataset_dir, output_csv):
                         if not (os.path.exists(rear_path) and os.path.exists(top_path)):
                             continue
                             
+                        # Load pre-calculated angles from angle_dataset
+                        def load_angle_file(view, feature, filename):
+                            p = os.path.join(angle_base, view, feature, filename)
+                            res = {}
+                            if os.path.exists(p):
+                                try:
+                                    with open(p, 'r') as f_ang:
+                                        for l_ang in f_ang:
+                                            p_ang = l_ang.strip().split(',')
+                                            if len(p_ang) >= 2:
+                                                res[int(p_ang[0])] = float(p_ang[1])
+                                except Exception as e:
+                                    print(f"Error loading angle file {p}: {e}")
+                            return res
+
+                        angle_dicts = {
+                            "left_elbow": load_angle_file("rear_view", "left_elbow", file),
+                            "right_elbow": load_angle_file("rear_view", "right_elbow", file),
+                            "left_shoulder": load_angle_file("rear_view", "left_shoulder", file),
+                            "right_shoulder": load_angle_file("rear_view", "right_shoulder", file),
+                            "left_torso-arm": load_angle_file("top_view", "left_torso-arm", file),
+                            "right_torso-arm": load_angle_file("top_view", "right_torso-arm", file),
+                        }
+
                         bar_dict = {}
-                        with open(lat_path, 'r') as f:
-                            for line in f:
+                        with open(lat_path, 'r') as f_lat:
+                            for line in f_lat:
                                 vals = [float(v) for v in line.strip().split(',')]
                                 if len(vals) >= 3:
                                     bar_dict[int(vals[0])] = [vals[1], vals[2]]
                                     
                         rear_ske_dict = {}
-                        with open(rear_path, 'r') as f:
+                        with open(rear_path, 'r') as f_rear:
                             import re
-                            for line in f:
+                            for line in f_rear:
                                 line = line.strip()
                                 if not line: continue
                                 if line.startswith("Frame"):
@@ -110,9 +139,9 @@ def generate_csv(dataset_dir, output_csv):
                                         rear_ske_dict[int(vals[0])] = vals[1:13]
                                         
                         top_ske_dict = {}
-                        with open(top_path, 'r') as f:
+                        with open(top_path, 'r') as f_top:
                             import re
-                            for line in f:
+                            for line in f_top:
                                 line = line.strip()
                                 if not line: continue
                                 if line.startswith("Frame"):
@@ -155,11 +184,11 @@ def generate_csv(dataset_dir, output_csv):
                                         ]
                                         
                                     
-                        from ..tools.Benchpress_tool.predict import extract_raw_features, remove_outliers_and_interpolate, variation_normalize, variation_acceleration_normalize, variation_ratio_normalize, z_score_normalize
+                        from dataset.tools.Benchpress_tool.predict import extract_raw_features, remove_outliers_and_interpolate, variation_normalize, variation_acceleration_normalize, variation_ratio_normalize, z_score_normalize
                         from scipy.interpolate import interp1d
                         
                         # 1. Base 13 metrics matrix
-                        df_raw = extract_raw_features(subject_path, bar_dict, rear_ske_dict, top_ske_dict)
+                        df_raw = extract_raw_features(subject_path, bar_dict, rear_ske_dict, top_ske_dict, angle_dicts=angle_dicts)
                         if df_raw.empty or len(df_raw) < 5:
                             continue
                             
