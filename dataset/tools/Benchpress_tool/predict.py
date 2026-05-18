@@ -111,10 +111,15 @@ def variation_acceleration_normalize(data):
         out[i] = (data[i] - data[i-1]) - (data[i-1] - data[i-2])
     return out
 
-def variation_ratio_normalize(data):
+def variation_ratio_normalize(data, eps=1e-3):
     out = np.zeros(len(data))
     for i in range(1, len(data)):
-        out[i] = (data[i-1] - data[i]) / data[i-1] if data[i-1] != 0 else 0
+        prev = data[i - 1]
+        # Treat near-zero denominators as unstable, not only exact zeros.
+        # Distance-like features can be nudged close to zero by augmentation,
+        # which would otherwise turn a small absolute change into an enormous
+        # ratio feature and destabilize training.
+        out[i] = (prev - data[i]) / prev if abs(prev) >= eps else 0
     return out
 
 def z_score_normalize(data):
